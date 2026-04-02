@@ -20,7 +20,7 @@ export default function Admin() {
       navigate('/')
       return
     }
-    fetch(`http://localhost:8000/admin/users?secret=${ADMIN_SECRET}`)
+    fetch(`https://raportakam.onrender.com/admin/users?secret=${ADMIN_SECRET}`)
       .then(r => r.json())
       .then(data => {
         setUsers(data.users || [])

@@ -96,7 +96,7 @@ async function generateFile(form, onStatus) {
 
   let res
   try {
-    res = await fetch('http://localhost:8000/generate', { method: 'POST', body: data })
+    res = await fetch('https://raportakam.onrender.com/generate', { method: 'POST', body: data })
   } catch {
     throw new Error('ناتوانرێت پەیوەندی بە server بکرێت — دڵنیابە کە backend کاردەکات')
   }
@@ -547,7 +547,7 @@ export default function Create() {
                   <h2 className="text-2xl font-bold mb-1">ئامادەیە!</h2>
                   <p className="text-slate-400 text-sm mb-1">{result.title}</p>
                   <p className="text-slate-600 text-xs mb-6">{result.tokens_used} تۆکێن بەکارهات</p>
-                  <a href={result.r2_download ? `http://localhost:8000${result.r2_download}` : `http://localhost:8000${result.download_path}`} download>
+                  <a href={result.r2_download ? `https://raportakam.onrender.com${result.r2_download}` : `https://raportakam.onrender.com${result.download_path}`} download>
                     <motion.button whileHover={{ scale: 1.04, boxShadow: '0 0 30px rgba(234,179,8,0.4)' }} whileTap={{ scale: 0.97 }}
                       className="flex items-center gap-2 text-slate-950 font-bold px-8 py-3.5 rounded-xl text-base mx-auto mb-4"
                       style={{ background: 'linear-gradient(135deg, #eab308, #f97316)' }}>
