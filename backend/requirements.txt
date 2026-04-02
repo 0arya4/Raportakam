@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-multipart
+anthropic
+boto3
+requests
+python-dotenv
+python-pptx
+python-docx
+supabase
