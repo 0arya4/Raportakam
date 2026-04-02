@@ -91,7 +91,7 @@ export default function History() {
 
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       {/* Download */}
-                      <a href={f.file_url?.startsWith('/') ? `http://localhost:8000${f.file_url}` : f.file_url} download>
+                      <a href={f.file_url?.startsWith('/') ? `https://raportakam.onrender.com${f.file_url}` : f.file_url} download>
                         <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
                           className="w-8 h-8 bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-400 rounded-lg flex items-center justify-center transition">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
