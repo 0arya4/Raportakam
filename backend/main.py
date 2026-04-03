@@ -136,7 +136,7 @@ Output ONLY the JSON, nothing else."""
         user = f"{create_word_phrase}: {prompt}{extra}"
 
     message = claude.messages.create(
-        model="claude-3-5-sonnet-20240620",
+        model="claude-sonnet-4-6",
         max_tokens=8192,
         messages=[{"role": "user", "content": user}],
         system=system,
