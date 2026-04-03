@@ -207,7 +207,7 @@ export default function Navbar() {
               </motion.span>
             ) : (
               <span className="text-xs font-medium text-slate-400">
-                <span className="text-yellow-400 font-bold">{profile.points ?? 50}</span> خاڵ
+                پلانی خۆڕایی <span className="text-yellow-400 font-bold">{profile.points ?? 100}</span> خاڵ
               </span>
             )
           )}

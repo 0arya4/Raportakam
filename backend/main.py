@@ -386,6 +386,7 @@ async def admin_users(secret: str = ""):
                 "full_name": p.get("full_name", ""),
                 "plan": plan,
                 "plan_expires_at": expires_at,
+                "points": p.get("points", 100),
                 "generations_used": gen_count_map.get(uid, 0),
                 "tokens_used": token_map.get(uid, 0),
                 "created_at": p.get("created_at", ""),
@@ -410,6 +411,22 @@ async def set_plan(secret: str = "", user_id: str = "", plan: str = ""):
         expires_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat() if plan == "pro" else None
         sb.table("profiles").update({"plan": plan, "plan_expires_at": expires_at}).eq("id", user_id).execute()
         return {"success": True, "plan_expires_at": expires_at}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/add-points")
+async def add_points(secret: str = "", user_id: str = "", points: int = 0):
+    if secret != os.getenv("ADMIN_SECRET", "raportakam-admin-2026"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        from supabase import create_client
+        sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
+        profile = sb.table("profiles").select("points").eq("id", user_id).single().execute()
+        current = profile.data.get("points", 100) or 0
+        new_points = current + points
+        sb.table("profiles").update({"points": new_points}).eq("id", user_id).execute()
+        return {"success": True, "points": new_points}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

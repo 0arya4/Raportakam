@@ -46,21 +46,13 @@ def add_text(tf, text: str, size: int, bold: bool, color: RGBColor, align=PP_ALI
     run.font.color.rgb = color
 
 
-def _add_image(slide, img_keywords, s, theme, img_x, img_y, img_w, img_h, lbl_x, lbl_y):
+def _add_image(slide, s, img_x, img_y, img_w, img_h):
     img_path = s.get("image_path")
     if img_path and os.path.exists(img_path):
         try:
             slide.shapes.add_picture(img_path, img_x, img_y, img_w, img_h)
         except Exception:
-            shape = slide.shapes.add_shape(1, img_x, img_y, img_w, img_h)
-            shape.fill.solid(); shape.fill.fore_color.rgb = RGBColor(30, 41, 59)
-            shape.line.color.rgb = theme["accent"]
-    else:
-        shape = slide.shapes.add_shape(1, img_x, img_y, img_w, img_h)
-        shape.fill.solid(); shape.fill.fore_color.rgb = RGBColor(30, 41, 59)
-        shape.line.color.rgb = theme["accent"]
-    tb = slide.shapes.add_textbox(lbl_x, lbl_y, img_w, Inches(0.5))
-    add_text(tb.text_frame, f"🖼️ {img_keywords}", 9, False, theme["text"], align=PP_ALIGN.CENTER)
+            pass
 
 
 def generate_presentation(data: dict, output_path: str = None, theme_id: str = "dark", style: str = "classic") -> str:
@@ -74,7 +66,7 @@ def generate_presentation(data: dict, output_path: str = None, theme_id: str = "
     slide = prs.slides.add_slide(blank_layout)
     set_bg(slide, theme["bg"])
     title_text = data.get("title", "ڕاپۆرتەکام")
-    subtitle_text = "دروستکراوە بە ڕاپۆرتەکام"
+    subtitle_text = "دروستکراوە بە Raportakam.com"
 
     if style == "corporate":
         # Thick left sidebar + left-aligned text
@@ -234,9 +226,7 @@ def generate_presentation(data: dict, output_path: str = None, theme_id: str = "
         # Image
         if has_img:
             img_x = Inches(0.5) if style != "corporate" else Inches(8.8)
-            _add_image(slide, img_keywords, s, theme,
-                       img_x, Inches(1.5), Inches(4.4), Inches(3.6),
-                       img_x, Inches(5.2))
+            _add_image(slide, s, img_x, Inches(1.5), Inches(4.4), Inches(3.6))
 
         # Slide number
         num_x = Inches(12.8) if style in ("corporate", "classic", "bold", "minimal", "tech") else Inches(0.3)
