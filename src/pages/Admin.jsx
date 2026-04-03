@@ -17,6 +17,21 @@ export default function Admin() {
   const [planFilter, setPlanFilter] = useState('all')
   const [updating, setUpdating] = useState(null)
   const [confirm, setConfirm] = useState(null)
+  const [pointsModal, setPointsModal] = useState(null)
+  const [pointsInput, setPointsInput] = useState('')
+  const [addingPoints, setAddingPoints] = useState(false)
+
+  const handleAddPoints = async () => {
+    const amount = parseInt(pointsInput)
+    if (!amount || amount <= 0) return
+    setAddingPoints(true)
+    const res = await fetch(`https://raportakam.onrender.com/admin/add-points?secret=${ADMIN_SECRET}&user_id=${pointsModal.id}&points=${amount}`, { method: 'POST' })
+    const data = await res.json()
+    setUsers(prev => prev.map(x => x.id === pointsModal.id ? { ...x, points: data.points } : x))
+    setPointsModal(null)
+    setPointsInput('')
+    setAddingPoints(false)
+  }
 
   const togglePlan = (u) => {
     setConfirm(u)
@@ -74,6 +89,28 @@ export default function Admin() {
   return (
     <>
       <Navbar />
+      {pointsModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-80 text-center">
+            <p className="text-white font-bold mb-1">زیادکردنی خاڵ</p>
+            <p className="text-slate-400 text-sm mb-4">{pointsModal.full_name || pointsModal.email}</p>
+            <p className="text-yellow-400 text-sm mb-3">خاڵی ئێستا: {pointsModal.points ?? 100}</p>
+            <input
+              type="number" min={1}
+              value={pointsInput}
+              onChange={e => setPointsInput(e.target.value)}
+              placeholder="چەند خاڵ زیاد بکەیت؟"
+              className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-xl px-4 py-2.5 outline-none mb-4 text-center"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setPointsModal(null); setPointsInput('') }} className="flex-1 bg-slate-800 text-white rounded-xl py-2 text-sm hover:bg-slate-700 transition">داخستن</button>
+              <button onClick={handleAddPoints} disabled={addingPoints} className="flex-1 bg-yellow-400 text-black rounded-xl py-2 text-sm font-bold hover:bg-yellow-300 transition">
+                {addingPoints ? '...' : 'زیادکردن'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {confirm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-80 text-center">
@@ -153,6 +190,7 @@ export default function Admin() {
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">دروستکردن</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">تۆکێن</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">تێچوون</th>
+                    <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">خاڵ</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">کاتی پرۆ</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">بەروار</th>
                   </tr>
@@ -217,6 +255,12 @@ export default function Admin() {
                       </td>
                       <td className="px-5 py-3.5">
                         <span className="text-green-400 text-xs font-mono">{calcCost(u.tokens_used)}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-yellow-400 text-xs font-bold">{u.points ?? 100}</span>
+                          <button onClick={() => { setPointsModal(u); setPointsInput('') }} className="w-5 h-5 bg-yellow-400/20 hover:bg-yellow-400/40 text-yellow-400 rounded-full text-xs font-bold transition flex items-center justify-center">+</button>
+                        </div>
                       </td>
                       <td className="px-5 py-3.5 text-xs" dir="ltr">
                         {u.plan === 'pro' && u.plan_expires_at

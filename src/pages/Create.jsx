@@ -156,6 +156,29 @@ export default function Create() {
   const [error, setError] = useState('')
   const [statusMsg, setStatusMsg] = useState('')
 
+  const isPro = profile?.plan === 'pro'
+  const userPoints = profile?.points ?? 100
+
+  const SLIDE_OPTIONS = [1,2,3,4,5,6,7,8,9,10,15,20,25,30]
+
+  const calcXal = () => {
+    let cost = 25
+    const s = form.slides
+    if (s >= 6 && s <= 10) cost += 5
+    else if (s === 15) cost += 8
+    else if (s === 20) cost += 10
+    else if (s === 25) cost += 12
+    else if (s === 30) cost += 15
+    if (form.detail === 'detailed') cost += 3
+    if (form.includeAIImages) cost += 3
+    if (form.includeStats) cost += 1
+    if (form.includeExamples) cost += 1
+    return cost
+  }
+
+  const xalNeeded = calcXal()
+  const hasEnoughXal = isPro || userPoints >= xalNeeded
+
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
   const canNext = () => {
@@ -165,6 +188,7 @@ export default function Create() {
 
   const handleNext = async () => {
     if (step < 4) { setStep(s => s + 1); return }
+    if (!hasEnoughXal) return
     setStep(5)
     setError('')
     setStatusMsg('')
@@ -193,6 +217,11 @@ export default function Create() {
           file_name: form.fileName,
           tokens_used: res.tokens_used || 0,
         })
+        if (!isPro) {
+          const newPoints = userPoints - xalNeeded
+          await supabase.from('profiles').update({ points: newPoints }).eq('id', user.id)
+          setProfile(p => ({ ...p, points: newPoints }))
+        }
       }
     } catch (e) {
       setError(e.message || 'کێشەیەک روویدا')
@@ -209,7 +238,7 @@ export default function Create() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Top bar */}
-      <div className="h-14 border-b border-slate-800 flex items-center justify-between px-6 flex-shrink-0">
+      <div className="h-16 border-b border-slate-800 flex items-center justify-between px-10 flex-shrink-0">
         {/* Steps */}
         <div className="flex items-center gap-1.5">
           {STEPS.map((label, i) => {
@@ -218,11 +247,11 @@ export default function Create() {
             const active = step === n
             return (
               <div key={n} className="flex items-center gap-1.5">
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   active ? 'bg-yellow-400/20 text-yellow-400' :
                   done ? 'text-green-400' : 'text-slate-600'
                 }`}>
-                  <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                     active ? 'bg-yellow-400 text-slate-950' :
                     done ? 'bg-green-500 text-white' : 'bg-slate-800 text-slate-600'
                   }`}>
@@ -241,7 +270,7 @@ export default function Create() {
             profile.plan === 'pro' ? (
               <motion.span animate={{ textShadow: ['0 0 8px #f97316', '0 0 16px #f97316', '0 0 8px #f97316'] }} transition={{ duration: 2, repeat: Infinity }} className="text-xs font-bold text-orange-400">پلانی پڕۆ</motion.span>
             ) : (
-              <span className="text-xs text-slate-400"><span className="text-yellow-400 font-bold">{profile.points ?? 50}</span> خاڵ</span>
+              <span className="text-xs text-slate-400">پلانی خۆڕایی <span className="text-yellow-400 font-bold">{profile.points ?? 100}</span> خاڵ</span>
             )
           )}
           <button onClick={() => navigate('/')} className="flex items-center gap-2">
@@ -252,7 +281,7 @@ export default function Create() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-10 overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center px-4 py-8 overflow-y-auto">
         <AnimatePresence mode="wait">
 
           {/* ── STEP 1: Topic ── */}
@@ -421,26 +450,23 @@ export default function Create() {
 
               {form.type === 'pptx' && (
                 <div className="mb-6 flex items-center justify-between bg-slate-900/40 border border-slate-800 p-4 rounded-2xl">
-                  <p className="text-sm font-semibold text-white">ژمارەی سلاید (٢ - ٢٠)</p>
-                  <div className="flex items-center gap-2 bg-slate-900 border-2 border-slate-700 rounded-xl px-3 py-1.5 focus-within:border-yellow-400 transition w-28">
-                    <input
-                      type="number" min={2} max={20}
-                      value={form.slides}
-                      onChange={e => {
-                        const val = parseInt(e.target.value) || 0;
-                        set('slides', Math.min(Math.max(val, 2), 20))
-                      }}
-                      className="bg-transparent text-xl font-black text-white outline-none w-full text-center"
-                    />
-                    <div className="flex flex-col">
-                      <button onClick={() => set('slides', Math.min(form.slides + 1, 20))} className="hover:text-yellow-400 transition text-slate-500">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 15l7-7 7 7"/></svg>
-                      </button>
-                      <button onClick={() => set('slides', Math.max(form.slides - 1, 2))} className="hover:text-yellow-400 transition text-slate-500">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M19 9l-7 7-7-7"/></svg>
-                      </button>
-                    </div>
-                  </div>
+                  <p className="text-sm font-semibold text-white">ژمارەی سلاید</p>
+                  <select
+                    value={form.slides}
+                    onChange={e => {
+                      const val = parseInt(e.target.value)
+                      if (val >= 15 && !isPro) return
+                      set('slides', val)
+                    }}
+                    className="bg-slate-900 border-2 border-slate-700 focus:border-yellow-400 text-white rounded-xl px-4 py-2 outline-none text-sm transition"
+                  >
+                    {SLIDE_OPTIONS.map(n => (
+                      <option key={n} value={n} disabled={n >= 15 && !isPro}
+                        style={{ color: n >= 15 ? '#f97316' : 'white' }}>
+                        {n} سلاید{n >= 15 ? ' 👑' : ''}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 
@@ -465,7 +491,17 @@ export default function Create() {
           {step === 4 && (
             <motion.div key="s4" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-2xl sm:max-w-2xl">
               <h1 className="text-2xl sm:text-4xl font-black text-center mb-1">وردەکاری</h1>
-              <p className="text-slate-500 text-sm text-center mb-6">ئاستی وردبوونەوە و ناوەڕۆک دیاری بکە</p>
+              <p className="text-slate-500 text-sm text-center mb-4">ئاستی وردبوونەوە و ناوەڕۆک دیاری بکە</p>
+
+              {/* XAL counter */}
+              <div className={`flex items-center justify-between px-4 py-3 rounded-xl border mb-5 transition ${hasEnoughXal ? 'border-slate-700 bg-slate-900/40' : 'border-red-500/60 bg-red-500/10'}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-bold ${hasEnoughXal ? 'text-white' : 'text-red-400'}`}>{xalNeeded} خاڵ پێویستە</span>
+                  {!hasEnoughXal && <span className="text-red-400 text-xs">— خاڵی پێویستت نییە</span>}
+                </div>
+                {!isPro && <span className="text-slate-500 text-xs">{userPoints} خاڵت هەیە</span>}
+                {isPro && <span className="text-orange-400 text-xs">پڕۆ — نامەحدود</span>}
+              </div>
 
               <div className="mb-6">
                 <p className="text-sm font-semibold text-white mb-3">ئاستی وردبوونەوە</p>
@@ -478,6 +514,7 @@ export default function Create() {
                       }`}>
                       <div className="font-semibold">{d.label}</div>
                       <div className="text-xs opacity-60 mt-0.5">{d.desc}</div>
+                      {d.id === 'detailed' && <div className="text-xs text-orange-400 mt-1">+3 خاڵ</div>}
                     </motion.button>
                   ))}
                 </div>
@@ -487,11 +524,11 @@ export default function Create() {
                 <p className="text-sm font-semibold text-white mb-3">چی تێبگات؟</p>
                 <div className="space-y-2">
                   {[
-                    { key: 'includeStats',      label: 'ئامار و ژمارە',       icon: '📊', desc: 'زیادکردنی داتا و ئامار' },
-                    { key: 'includeExamples',   label: 'نموونەکان',            icon: '💡', desc: 'نموونەی ڕاستەقینە' },
-                    { key: 'includeImages',     label: 'وێنە',                icon: '🖼️', desc: 'دانانی وێنە لە سڵایدەکان' },
-                    { key: 'includeAIImages',   label: 'ڕەسمی Ai',            icon: '🤖', desc: 'دروستکردنی وێنە بە زیرەکی دەستکرد' },
-                    { key: 'includeConclusion', label: 'دەرئەنجام',            icon: '✅', desc: 'Conclusion' },
+                    { key: 'includeStats',      label: 'ئامار و ژمارە',       icon: '📊', desc: 'زیادکردنی داتا و ئامار',                   xal: '+1 خاڵ' },
+                    { key: 'includeExamples',   label: 'نموونەکان',            icon: '💡', desc: 'نموونەی ڕاستەقینە',                           xal: '+1 خاڵ' },
+                    { key: 'includeImages',     label: 'وێنە',                icon: '🖼️', desc: 'دانانی وێنە لە سڵایدەکان',                    xal: '' },
+                    { key: 'includeAIImages',   label: 'ڕەسمی Ai',            icon: '🤖', desc: 'دروستکردنی وێنە بە زیرەکی دەستکرد',           xal: '+3 خاڵ' },
+                    { key: 'includeConclusion', label: 'دەرئەنجام',            icon: '✅', desc: 'Conclusion',                                  xal: '' },
                   ].map(opt => (
                     <motion.button key={opt.key} whileTap={{ scale: 0.98 }}
                       onClick={() => {
@@ -510,7 +547,10 @@ export default function Create() {
                       <div className="flex items-center gap-3">
                         <span className="text-lg">{opt.icon}</span>
                         <div className="text-right">
-                          <div className={`text-sm font-medium ${form[opt.key] ? 'text-yellow-400' : 'text-slate-300'}`}>{opt.label}</div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-medium ${form[opt.key] ? 'text-yellow-400' : 'text-slate-300'}`}>{opt.label}</span>
+                            {opt.xal && <span className="text-orange-400 text-xs">{opt.xal}</span>}
+                          </div>
                           <div className="text-xs text-slate-500">{opt.desc}</div>
                         </div>
                       </div>
@@ -566,7 +606,7 @@ export default function Create() {
                   <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-5xl mb-5">✅</motion.div>
                   <h2 className="text-2xl font-bold mb-1">ئامادەیە!</h2>
                   <p className="text-slate-400 text-sm mb-1">{result.title}</p>
-                  <p className="text-slate-600 text-xs mb-6">{result.tokens_used} تۆکێن بەکارهات</p>
+                  <p className="text-slate-600 text-xs mb-6">{xalNeeded} خاڵ بەکارهێنرا</p>
                   <a href={result.r2_download ? `https://raportakam.onrender.com${result.r2_download}` : `https://raportakam.onrender.com${result.download_path}`} download>
                     <motion.button whileHover={{ scale: 1.04, boxShadow: '0 0 30px rgba(234,179,8,0.4)' }} whileTap={{ scale: 0.97 }}
                       className="flex items-center gap-2 text-slate-950 font-bold px-8 py-3.5 rounded-xl text-base mx-auto mb-4"
@@ -612,7 +652,7 @@ export default function Create() {
           </motion.button>
 
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-            disabled={!canNext()}
+            disabled={!canNext() || (step === 4 && !hasEnoughXal)}
             onClick={handleNext}
             className="flex items-center gap-2 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-sm disabled:opacity-30 disabled:cursor-not-allowed transition"
             style={{ background: 'linear-gradient(135deg, #eab308, #f97316)' }}>

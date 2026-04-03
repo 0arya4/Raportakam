@@ -48,7 +48,7 @@ export default function Landing() {
       <Navbar />
 
       {/* ── HERO ─────────────────────────────────── */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-14 px-4">
+      <section ref={heroRef} className="relative min-h-screen flex items-start justify-center overflow-hidden pt-28 px-4">
 
         {/* Animated background */}
         <div className="absolute inset-0 pointer-events-none">
