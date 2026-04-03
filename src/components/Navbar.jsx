@@ -107,7 +107,7 @@ export default function Navbar() {
       transition={{ duration: 0.5 }}
       className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl border-b border-yellow-500/10"
     >
-      <div className="px-10 h-20 flex items-center justify-between">
+      <div className="px-4 sm:px-10 h-16 sm:h-20 flex items-center justify-between">
         {/* Right side: auth + contact */}
         <div className="flex items-center gap-2">
           {user ? (
@@ -115,12 +115,12 @@ export default function Navbar() {
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(o => !o)}
-                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg transition"
+                  className="flex items-center gap-1.5 sm:gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2 sm:px-3 py-1.5 rounded-lg transition"
                 >
-                  <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center text-slate-950 text-xs font-bold">
+                  <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center text-slate-950 text-xs font-bold flex-shrink-0">
                     {(profile?.full_name || user.email)?.[0]?.toUpperCase()}
                   </div>
-                  <span className="text-sm text-slate-300 max-w-[120px] truncate">
+                  <span className="text-sm text-slate-300 max-w-[80px] sm:max-w-[120px] truncate hidden xs:block sm:block">
                     {profile?.full_name || user.email}
                   </span>
                   <svg className="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -208,12 +208,12 @@ export default function Navbar() {
             <>
               <ContactMenu />
               <Link to="/login">
-                <button className="text-sm px-4 py-1.5 rounded-lg border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 transition">
+                <button className="text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 rounded-lg border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 transition">
                   چوونەژوورەوە
                 </button>
               </Link>
               <Link to="/pricing">
-                <button className="text-sm px-4 py-1.5 rounded-lg bg-yellow-400 text-slate-950 font-semibold hover:bg-yellow-300 transition">
+                <button className="text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 rounded-lg bg-yellow-400 text-slate-950 font-semibold hover:bg-yellow-300 transition">
                   نرخەکان
                 </button>
               </Link>
@@ -222,32 +222,32 @@ export default function Navbar() {
         </div>
 
         {/* Logo */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {user && profile && (
             profile.plan === 'pro' ? (
               <motion.div
                 animate={{ boxShadow: ['0 0 12px rgba(249,115,22,0.5)', '0 0 24px rgba(249,115,22,0.8)', '0 0 12px rgba(249,115,22,0.5)'] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-orange-500/60 px-3 py-1.5 rounded-lg"
+                className="flex items-center gap-1 sm:gap-1.5 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-orange-500/60 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg"
               >
-                <span className="text-base">👑</span>
+                <span className="text-sm sm:text-base">👑</span>
                 <motion.span
                   animate={{ textShadow: ['0 0 8px #f97316', '0 0 18px #f97316', '0 0 8px #f97316'] }}
                   transition={{ duration: 2, repeat: Infinity }}
-                  className="text-sm font-black text-orange-400"
+                  className="text-xs sm:text-sm font-black text-orange-400"
                 >
                   پلانی پڕۆ
                 </motion.span>
               </motion.div>
             ) : (
-              <span className="text-sm font-medium text-slate-400 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg">
-                پلانی خۆڕایی <span className="text-yellow-400 font-bold">{profile.points ?? 100}</span> خاڵ
+              <span className="text-xs sm:text-sm font-medium text-slate-400 bg-slate-800 border border-slate-700 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg">
+                <span className="hidden sm:inline">پلانی خۆڕایی </span><span className="text-yellow-400 font-bold">{profile.points ?? 100}</span><span className="hidden sm:inline"> خاڵ</span><span className="sm:hidden"> خاڵ</span>
               </span>
             )
           )}
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-white">ڕاپۆرتەکەم</span>
-            <motion.img whileHover={{ scale: 1.1, rotate: 5 }} src={logo} alt="ڕاپۆرتەکەم" className="w-16 h-16 object-contain" />
+          <Link to="/" className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-lg sm:text-2xl font-bold text-white">ڕاپۆرتەکەم</span>
+            <motion.img whileHover={{ scale: 1.1, rotate: 5 }} src={logo} alt="ڕاپۆرتەکەم" className="w-10 h-10 sm:w-16 sm:h-16 object-contain" />
           </Link>
         </div>
       </div>
