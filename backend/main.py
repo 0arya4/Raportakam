@@ -234,8 +234,19 @@ async def generate(
     file_text = ""
     if file:
         content = await file.read()
+        filename_lower = (file.filename or "").lower()
         try:
-            file_text = content.decode("utf-8")[:3000]
+            if filename_lower.endswith(".pdf"):
+                import fitz
+                doc = fitz.open(stream=content, filetype="pdf")
+                file_text = "\n".join(page.get_text() for page in doc)[:5000]
+            elif filename_lower.endswith(".docx"):
+                import io
+                from docx import Document
+                doc = Document(io.BytesIO(content))
+                file_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())[:5000]
+            else:
+                file_text = content.decode("utf-8")[:5000]
         except Exception:
             file_text = ""
 
@@ -356,13 +367,25 @@ async def admin_users(secret: str = ""):
             token_map[uid] = token_map.get(uid, 0) + (g["tokens_used"] or 0)
             gen_count_map[uid] = gen_count_map.get(uid, 0) + 1
 
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
         users = []
         for uid, p in profiles.items():
+            plan = p.get("plan", "free")
+            expires_at = p.get("plan_expires_at")
+            # Auto-revert expired pro plans
+            if plan == "pro" and expires_at:
+                exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                if exp < now:
+                    plan = "free"
+                    sb.table("profiles").update({"plan": "free", "plan_expires_at": None}).eq("id", uid).execute()
+                    expires_at = None
             users.append({
                 "id": uid,
                 "email": p.get("email", ""),
                 "full_name": p.get("full_name", ""),
-                "plan": p.get("plan", "free"),
+                "plan": plan,
+                "plan_expires_at": expires_at,
                 "generations_used": gen_count_map.get(uid, 0),
                 "tokens_used": token_map.get(uid, 0),
                 "created_at": p.get("created_at", ""),
@@ -370,6 +393,23 @@ async def admin_users(secret: str = ""):
 
         users.sort(key=lambda x: x["tokens_used"], reverse=True)
         return {"users": users, "total": len(users)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/set-plan")
+async def set_plan(secret: str = "", user_id: str = "", plan: str = ""):
+    if secret != os.getenv("ADMIN_SECRET", "raportakam-admin-2026"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if plan not in ("free", "pro"):
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    try:
+        from supabase import create_client
+        from datetime import datetime, timezone, timedelta
+        sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat() if plan == "pro" else None
+        sb.table("profiles").update({"plan": plan, "plan_expires_at": expires_at}).eq("id", user_id).execute()
+        return {"success": True, "plan_expires_at": expires_at}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

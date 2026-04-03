@@ -13,6 +13,32 @@ export default function Admin() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ total: 0, pro: 0, tokens: 0 })
+  const [search, setSearch] = useState('')
+  const [planFilter, setPlanFilter] = useState('all')
+  const [updating, setUpdating] = useState(null)
+  const [confirm, setConfirm] = useState(null)
+
+  const togglePlan = (u) => {
+    setConfirm(u)
+  }
+
+  const confirmToggle = async () => {
+    const u = confirm
+    setConfirm(null)
+    const newPlan = u.plan === 'pro' ? 'free' : 'pro'
+    setUpdating(u.id)
+    const res = await fetch(`https://raportakam.onrender.com/admin/set-plan?secret=${ADMIN_SECRET}&user_id=${u.id}&plan=${newPlan}`, { method: 'POST' })
+    const data = await res.json()
+    setUsers(prev => prev.map(x => x.id === u.id ? { ...x, plan: newPlan, plan_expires_at: data.plan_expires_at } : x))
+    setUpdating(null)
+  }
+
+  const formatExpiry = (d) => {
+    if (!d) return '—'
+    const date = new Date(d)
+    const diff = Math.ceil((date - Date.now()) / (1000 * 60 * 60 * 24))
+    return `${date.toLocaleDateString('en-GB')} (${diff}ڕۆژ)`
+  }
 
   useEffect(() => {
     if (!user) return
@@ -32,6 +58,13 @@ export default function Admin() {
       .catch(() => setLoading(false))
   }, [user])
 
+  const filteredUsers = users.filter(u => {
+    const q = search.toLowerCase()
+    const matchSearch = !q || u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
+    const matchPlan = planFilter === 'all' || u.plan === planFilter
+    return matchSearch && matchPlan
+  })
+
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : '—'
   const formatTokens = (t) => t >= 1000 ? `${(t / 1000).toFixed(1)}k` : t
   const calcCost = (tokens) => `$${((tokens / 1_000_000) * 9).toFixed(4)}`
@@ -41,6 +74,22 @@ export default function Admin() {
   return (
     <>
       <Navbar />
+      {confirm && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-80 text-center">
+            <p className="text-white font-bold mb-1">دڵنیای؟</p>
+            <p className="text-slate-400 text-sm mb-4">
+              {confirm.plan === 'pro'
+                ? `${confirm.full_name || confirm.email} دەگەڕێتەوە بۆ بەخۆڕایی`
+                : `${confirm.full_name || confirm.email} دەبێتە پرۆ بۆ ماوەی ١ مانگ`}
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirm(null)} className="flex-1 bg-slate-800 text-white rounded-xl py-2 text-sm hover:bg-slate-700 transition">نەخێر</button>
+              <button onClick={confirmToggle} className="flex-1 bg-yellow-400 text-black rounded-xl py-2 text-sm font-bold hover:bg-yellow-300 transition">بەڵێ</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="min-h-screen pt-20 pb-16 px-6 bg-slate-950">
         <div className="max-w-6xl mx-auto">
 
@@ -68,6 +117,26 @@ export default function Admin() {
             ))}
           </motion.div>
 
+          {/* Search & Filter */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="flex gap-3 mb-4">
+            <input
+              type="text"
+              placeholder="گەڕان بە ناو یان ئیمەیڵ..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="flex-1 bg-slate-900 border border-slate-800 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 placeholder-slate-600"
+            />
+            <select
+              value={planFilter}
+              onChange={e => setPlanFilter(e.target.value)}
+              className="bg-slate-900 border border-slate-800 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-blue-500"
+            >
+              <option value="all">هەموو پلانەکان</option>
+              <option value="free">بەخۆڕایی</option>
+              <option value="pro">پرۆ</option>
+            </select>
+          </motion.div>
+
           {/* Table */}
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
@@ -84,6 +153,7 @@ export default function Admin() {
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">دروستکردن</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">تۆکێن</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">تێچوون</th>
+                    <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">کاتی پرۆ</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">بەروار</th>
                   </tr>
                 </thead>
@@ -98,7 +168,11 @@ export default function Admin() {
                     <tr>
                       <td colSpan={7} className="text-center py-16 text-slate-500">هیچ بەکارهێنەرێک نییە</td>
                     </tr>
-                  ) : users.map((u, i) => (
+                  ) : filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-16 text-slate-500">هیچ ئەنجامێک نەدۆزرایەوە</td>
+                    </tr>
+                  ) : filteredUsers.map((u, i) => (
                     <motion.tr
                       key={u.id}
                       initial={{ opacity: 0 }}
@@ -117,13 +191,17 @@ export default function Admin() {
                       </td>
                       <td className="px-5 py-3.5 text-slate-400 text-xs" dir="ltr">{u.email}</td>
                       <td className="px-5 py-3.5">
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                          u.plan === 'pro'
-                            ? 'bg-yellow-400/20 text-yellow-400'
-                            : 'bg-slate-700 text-slate-400'
-                        }`}>
-                          {u.plan === 'pro' ? 'پرۆ' : 'بەخۆڕایی'}
-                        </span>
+                        <button
+                          onClick={() => togglePlan(u)}
+                          disabled={updating === u.id}
+                          className={`text-xs px-2.5 py-1 rounded-full font-medium transition hover:opacity-80 ${
+                            u.plan === 'pro'
+                              ? 'bg-yellow-400/20 text-yellow-400'
+                              : 'bg-slate-700 text-slate-400'
+                          }`}
+                        >
+                          {updating === u.id ? '...' : u.plan === 'pro' ? 'پرۆ' : 'بەخۆڕایی'}
+                        </button>
                       </td>
                       <td className="px-5 py-3.5 text-slate-300 text-center">{u.generations_used}</td>
                       <td className="px-5 py-3.5">
@@ -139,6 +217,11 @@ export default function Admin() {
                       </td>
                       <td className="px-5 py-3.5">
                         <span className="text-green-400 text-xs font-mono">{calcCost(u.tokens_used)}</span>
+                      </td>
+                      <td className="px-5 py-3.5 text-xs" dir="ltr">
+                        {u.plan === 'pro' && u.plan_expires_at
+                          ? <span className="text-yellow-400">{formatExpiry(u.plan_expires_at)}</span>
+                          : <span className="text-slate-600">—</span>}
                       </td>
                       <td className="px-5 py-3.5 text-slate-600 text-xs" dir="ltr">{formatDate(u.created_at)}</td>
                     </motion.tr>
