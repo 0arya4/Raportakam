@@ -236,9 +236,9 @@ export default function Create() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
+    <div className="h-screen bg-slate-950 flex flex-col overflow-hidden pt-2">
       {/* Top bar */}
-      <div className="h-16 border-b border-slate-800 flex items-center justify-between px-10 flex-shrink-0">
+      <div className="h-28 border-b border-slate-800 flex items-center justify-between px-10 flex-shrink-0">
         {/* Steps */}
         <div className="flex items-center gap-1.5">
           {STEPS.map((label, i) => {
@@ -268,40 +268,42 @@ export default function Create() {
         <div className="flex items-center gap-3">
           {profile && (
             profile.plan === 'pro' ? (
-              <motion.span animate={{ textShadow: ['0 0 8px #f97316', '0 0 16px #f97316', '0 0 8px #f97316'] }} transition={{ duration: 2, repeat: Infinity }} className="text-xs font-bold text-orange-400">پلانی پڕۆ</motion.span>
+              <motion.span animate={{ textShadow: ['0 0 8px #f97316', '0 0 16px #f97316', '0 0 8px #f97316'] }} transition={{ duration: 2, repeat: Infinity }} className="text-base font-bold text-orange-400">پلانی پڕۆ</motion.span>
             ) : (
-              <span className="text-xs text-slate-400">پلانی خۆڕایی <span className="text-yellow-400 font-bold">{profile.points ?? 100}</span> خاڵ</span>
+              <span className="text-lg text-slate-400">پلانی خۆڕایی <span className="text-yellow-400 font-bold">{profile.points ?? 100}</span> خاڵ</span>
             )
           )}
           <button onClick={() => navigate('/')} className="flex items-center gap-2">
-            <span className="font-bold text-white text-sm">ڕاپۆرتەکەم</span>
-            <img src={logo} alt="logo" className="w-8 h-8 object-contain" />
+            <span className="font-bold text-white text-3xl">ڕاپۆرتەکەم</span>
+            <img src={logo} alt="logo" className="w-24 h-24 object-contain" />
           </button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center px-4 py-8 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         <AnimatePresence mode="wait">
 
           {/* ── STEP 1: Topic ── */}
           {step === 1 && (
-            <motion.div key="s1" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-2xl sm:max-w-2xl">
-              <h1 className="text-2xl sm:text-4xl font-black text-center mb-1">بابەتەکەت چییە؟</h1>
-              <p className="text-slate-500 text-sm text-center mb-6">ناوی فایل و بابەتەکەت بنووسە</p>
+            <motion.div key="s1" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="flex flex-col min-h-full px-8 lg:px-16 py-10 w-full max-w-5xl mx-auto">
+              <div className="mb-8">
+                <h1 className="text-4xl sm:text-6xl font-black mb-3">بابەتەکەت چییە؟</h1>
+                <p className="text-slate-500 text-lg">ناوی فایل و بابەتەکەت بنووسە</p>
+              </div>
 
-              <div className="space-y-3 mb-5">
+              <div className="flex-1 flex flex-col gap-5 mb-8">
                 <input value={form.fileName} onChange={e => set('fileName', e.target.value)}
                   placeholder="ناوی فایلەکە... (نمونە: ڕاپۆرتی ئاووهەوا)" dir="rtl"
-                  className="w-full bg-slate-900 border border-slate-700 focus:border-yellow-500/60 outline-none text-white placeholder-slate-500 px-4 py-3 rounded-xl text-sm transition" />
+                  className="w-full bg-slate-900 border border-slate-700 focus:border-yellow-500/60 outline-none text-white placeholder-slate-500 px-6 py-5 rounded-2xl text-lg transition" />
 
-                <div className="bg-slate-900 border border-slate-700 focus-within:border-yellow-500/60 rounded-xl p-4 transition-all">
+                <div className="flex-1 bg-slate-900 border border-slate-700 focus-within:border-yellow-500/60 rounded-2xl p-6 transition-all flex flex-col">
                   <textarea value={form.prompt} onChange={e => set('prompt', e.target.value)}
-                    placeholder="بابەتەکەت بە وردی ڕووندەکەیتەوە... زیاتر بنووسی، باشتر دەبێت" dir="rtl" rows={4}
-                    className="w-full bg-transparent resize-none outline-none text-white placeholder-slate-500 text-sm leading-relaxed" />
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-800">
+                    placeholder="بابەتەکەت بە وردی ڕووندەکەیتەوە... زیاتر بنووسی، باشتر دەبێت" dir="rtl"
+                    className="flex-1 w-full bg-transparent resize-none outline-none text-white placeholder-slate-500 text-base leading-relaxed min-h-[200px]" />
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
                     <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-2 text-slate-400 hover:text-yellow-400 cursor-pointer transition text-xs">
+                      <label className="flex items-center gap-2 text-slate-400 hover:text-yellow-400 cursor-pointer transition text-sm">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                         </svg>
@@ -310,26 +312,26 @@ export default function Create() {
                       </label>
                       <InfoButton text="فایلێک هاوپێچ بکە (PDF, Word, CSV, TXT) تا زیرەکی دەستکردی ناوەڕۆکەکەی بخوێنێتەوە و بەکاری بهێنێت لە دروستکردنی فایلەکەدا." />
                     </div>
-                    <span className="text-xs text-slate-600">{form.prompt.length} پیت</span>
+                    <span className="text-sm text-slate-600">{form.prompt.length} پیت</span>
                   </div>
                 </div>
               </div>
 
               {/* Type */}
-              <div className="flex gap-3 mb-5">
+              <div className="flex gap-4">
                 {[
                   { id: 'pptx', label: 'سیمینار', icon: '📊', sub: 'PowerPoint' },
                   { id: 'word', label: 'ڕاپۆرت',  icon: '📄', sub: 'Word' },
                 ].map(t => (
                   <motion.button key={t.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                     onClick={() => set('type', t.id)}
-                    className={`flex items-center gap-3 px-5 py-3 rounded-xl border flex-1 transition ${
+                    className={`flex items-center gap-4 px-7 py-5 rounded-2xl border flex-1 transition ${
                       form.type === t.id ? 'border-yellow-400 bg-yellow-400/10 text-yellow-400' : 'border-slate-700 text-slate-400 hover:border-slate-600'
                     }`}>
-                    <span className="text-xl">{t.icon}</span>
+                    <span className="text-3xl">{t.icon}</span>
                     <div className="text-right">
-                      <div className="font-semibold text-sm">{t.label}</div>
-                      <div className="text-xs opacity-60">{t.sub}</div>
+                      <div className="font-bold text-base">{t.label}</div>
+                      <div className="text-sm opacity-60">{t.sub}</div>
                     </div>
                   </motion.button>
                 ))}
@@ -339,9 +341,9 @@ export default function Create() {
 
           {/* ── STEP 2: Audience & Purpose ── */}
           {step === 2 && (
-            <motion.div key="s2" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-2xl sm:max-w-2xl">
-              <h1 className="text-2xl sm:text-4xl font-black text-center mb-1">بۆ کێ و بۆ چی؟</h1>
-              <p className="text-slate-500 text-sm text-center mb-6">ئامانج و ئامانجدار دیاری بکە</p>
+            <motion.div key="s2" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-5xl mx-auto px-8 lg:px-16 py-10">
+              <h1 className="text-4xl sm:text-6xl font-black mb-3">بۆ کێ و بۆ چی؟</h1>
+              <p className="text-slate-500 text-lg mb-8">ئامانج و ئامانجدار دیاری بکە</p>
 
               <div className="mb-6">
                 <p className="text-sm font-semibold text-white mb-3">ئامانجدار کێیە؟</p>
@@ -393,9 +395,9 @@ export default function Create() {
 
           {/* ── STEP 3: Style ── */}
           {step === 3 && (
-            <motion.div key="s3" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-2xl sm:max-w-2xl">
-              <h1 className="text-2xl sm:text-4xl font-black text-center mb-1">شێوازەکە</h1>
-              <p className="text-slate-500 text-sm text-center mb-6">دیزاین و ئاھەنگی نووسین هەڵبژێرە</p>
+            <motion.div key="s3" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-5xl mx-auto px-8 lg:px-16 py-10">
+              <h1 className="text-4xl sm:text-6xl font-black mb-3">شێوازەکە</h1>
+              <p className="text-slate-500 text-lg mb-8">دیزاین و ئاھەنگی نووسین هەڵبژێرە</p>
 
               {form.type === 'pptx' && (
                 <div className="mb-6">
@@ -489,9 +491,9 @@ export default function Create() {
 
           {/* ── STEP 4: Details ── */}
           {step === 4 && (
-            <motion.div key="s4" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-2xl sm:max-w-2xl">
-              <h1 className="text-2xl sm:text-4xl font-black text-center mb-1">وردەکاری</h1>
-              <p className="text-slate-500 text-sm text-center mb-4">ئاستی وردبوونەوە و ناوەڕۆک دیاری بکە</p>
+            <motion.div key="s4" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-5xl mx-auto px-8 lg:px-16 py-10">
+              <h1 className="text-4xl sm:text-6xl font-black mb-3">وردەکاری</h1>
+              <p className="text-slate-500 text-lg mb-6">ئاستی وردبوونەوە و ناوەڕۆک دیاری بکە</p>
 
               {/* XAL counter */}
               <div className={`flex items-center justify-between px-4 py-3 rounded-xl border mb-5 transition ${hasEnoughXal ? 'border-slate-700 bg-slate-900/40' : 'border-red-500/60 bg-red-500/10'}`}>

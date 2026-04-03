@@ -40,7 +40,7 @@ function ContactMenu() {
               <div className="p-2">
                 <motion.a
                   whileHover={{ x: -3 }}
-                  href="https://wa.me/964700361252"
+                  href="https://wa.me/9647700361252"
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setOpen(false)}
@@ -71,6 +71,9 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [profile, setProfile] = useState(null)
   const [history, setHistory] = useState([])
+  const [pendingOrders, setPendingOrders] = useState(0)
+
+  const isAdmin = user?.email === 'aryagg036@gmail.com'
 
   useEffect(() => {
     if (!user) return
@@ -80,6 +83,17 @@ export default function Navbar() {
       .eq('user_id', user.id).order('created_at', { ascending: false }).limit(5)
       .then(({ data }) => { if (data) setHistory(data) })
   }, [user])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    const fetchPending = () => {
+      supabase.from('orders').select('id', { count: 'exact' }).eq('status', 'pending')
+        .then(({ count }) => { if (count != null) setPendingOrders(count) })
+    }
+    fetchPending()
+    const interval = setInterval(fetchPending, 5000)
+    return () => clearInterval(interval)
+  }, [isAdmin])
 
   const handleSignOut = async () => {
     await signOut()
@@ -93,7 +107,7 @@ export default function Navbar() {
       transition={{ duration: 0.5 }}
       className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl border-b border-yellow-500/10"
     >
-      <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+      <div className="px-10 h-20 flex items-center justify-between">
         {/* Right side: auth + contact */}
         <div className="flex items-center gap-2">
           {user ? (
@@ -175,6 +189,19 @@ export default function Navbar() {
                   )}
                 </AnimatePresence>
               </div>
+              {isAdmin && pendingOrders > 0 && (
+                <motion.button
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate('/admin')}
+                  className="flex items-center gap-1.5 bg-yellow-400/15 border border-yellow-400/50 hover:bg-yellow-400/25 px-2.5 py-1.5 rounded-lg transition"
+                >
+                  <span className="text-yellow-400 text-xs">📦</span>
+                  <span className="text-yellow-400 font-black text-sm">{pendingOrders}</span>
+                </motion.button>
+              )}
               <ContactMenu />
             </>
           ) : (
@@ -198,21 +225,28 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           {user && profile && (
             profile.plan === 'pro' ? (
-              <motion.span
-                animate={{ textShadow: ['0 0 8px #f97316', '0 0 16px #f97316', '0 0 8px #f97316'] }}
+              <motion.div
+                animate={{ boxShadow: ['0 0 12px rgba(249,115,22,0.5)', '0 0 24px rgba(249,115,22,0.8)', '0 0 12px rgba(249,115,22,0.5)'] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="text-xs font-bold text-orange-400"
+                className="flex items-center gap-1.5 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-orange-500/60 px-3 py-1.5 rounded-lg"
               >
-                پلانی پڕۆ
-              </motion.span>
+                <span className="text-base">👑</span>
+                <motion.span
+                  animate={{ textShadow: ['0 0 8px #f97316', '0 0 18px #f97316', '0 0 8px #f97316'] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="text-sm font-black text-orange-400"
+                >
+                  پلانی پڕۆ
+                </motion.span>
+              </motion.div>
             ) : (
-              <span className="text-xs font-medium text-slate-400">
+              <span className="text-sm font-medium text-slate-400 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg">
                 پلانی خۆڕایی <span className="text-yellow-400 font-bold">{profile.points ?? 100}</span> خاڵ
               </span>
             )
           )}
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-lg font-bold text-white">ڕاپۆرتەکەم</span>
+            <span className="text-2xl font-bold text-white">ڕاپۆرتەکەم</span>
             <motion.img whileHover={{ scale: 1.1, rotate: 5 }} src={logo} alt="ڕاپۆرتەکەم" className="w-16 h-16 object-contain" />
           </Link>
         </div>
