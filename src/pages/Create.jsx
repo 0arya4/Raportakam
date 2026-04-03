@@ -252,13 +252,13 @@ export default function Create() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-10 overflow-y-auto">
         <AnimatePresence mode="wait">
 
           {/* ── STEP 1: Topic ── */}
           {step === 1 && (
-            <motion.div key="s1" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-xl">
-              <h1 className="text-2xl font-black text-center mb-1">بابەتەکەت چییە؟</h1>
+            <motion.div key="s1" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-2xl sm:max-w-2xl">
+              <h1 className="text-2xl sm:text-4xl font-black text-center mb-1">بابەتەکەت چییە؟</h1>
               <p className="text-slate-500 text-sm text-center mb-6">ناوی فایل و بابەتەکەت بنووسە</p>
 
               <div className="space-y-3 mb-5">
@@ -310,8 +310,8 @@ export default function Create() {
 
           {/* ── STEP 2: Audience & Purpose ── */}
           {step === 2 && (
-            <motion.div key="s2" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-xl">
-              <h1 className="text-2xl font-black text-center mb-1">بۆ کێ و بۆ چی؟</h1>
+            <motion.div key="s2" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-2xl sm:max-w-2xl">
+              <h1 className="text-2xl sm:text-4xl font-black text-center mb-1">بۆ کێ و بۆ چی؟</h1>
               <p className="text-slate-500 text-sm text-center mb-6">ئامانج و ئامانجدار دیاری بکە</p>
 
               <div className="mb-6">
@@ -364,8 +364,8 @@ export default function Create() {
 
           {/* ── STEP 3: Style ── */}
           {step === 3 && (
-            <motion.div key="s3" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-xl">
-              <h1 className="text-2xl font-black text-center mb-1">شێوازەکە</h1>
+            <motion.div key="s3" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-2xl sm:max-w-2xl">
+              <h1 className="text-2xl sm:text-4xl font-black text-center mb-1">شێوازەکە</h1>
               <p className="text-slate-500 text-sm text-center mb-6">دیزاین و ئاھەنگی نووسین هەڵبژێرە</p>
 
               {form.type === 'pptx' && (
@@ -463,8 +463,8 @@ export default function Create() {
 
           {/* ── STEP 4: Details ── */}
           {step === 4 && (
-            <motion.div key="s4" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-xl">
-              <h1 className="text-2xl font-black text-center mb-1">وردەکاری</h1>
+            <motion.div key="s4" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-2xl sm:max-w-2xl">
+              <h1 className="text-2xl sm:text-4xl font-black text-center mb-1">وردەکاری</h1>
               <p className="text-slate-500 text-sm text-center mb-6">ئاستی وردبوونەوە و ناوەڕۆک دیاری بکە</p>
 
               <div className="mb-6">
@@ -545,7 +545,7 @@ export default function Create() {
 
           {/* ── STEP 5: Generating / Done ── */}
           {step === 5 && (
-            <motion.div key="s5" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-md text-center">
+            <motion.div key="s5" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-xl text-center">
               {!result && !error && (
                 <>
                   <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}

@@ -102,7 +102,7 @@ export default function Landing() {
 
           <motion.div
             custom={3} variants={fadeUp} initial="hidden" animate={loaded ? "show" : "hidden"}
-            className="flex flex-col sm:flex-row gap-3 justify-center mb-12"
+            className="flex flex-col sm:flex-row gap-3 justify-center mb-12 mt-14"
           >
             <motion.button
               whileHover={{ scale: 1.04, boxShadow: '0 0 30px rgba(234,179,8,0.4)' }}
