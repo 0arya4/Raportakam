@@ -8,7 +8,9 @@
       "Read(//mnt/c/Users/ASUS/AppData/Local/Temp/claude/d--raportakam/62493822-de48-4188-88df-37dffe2ee32b/tasks/**)",
       "Bash(npx vite:*)",
       "Bash(venv/Scripts/pip install:*)",
-      "Bash(venv/Scripts/python -c \"import fastapi, anthropic, pptx, docx, boto3; print\\('All packages OK'\\)\")"
+      "Bash(venv/Scripts/python -c \"import fastapi, anthropic, pptx, docx, boto3; print\\('All packages OK'\\)\")",
+      "Bash(git config:*)",
+      "Bash(npx gh-pages:*)"
     ]
   }
 }

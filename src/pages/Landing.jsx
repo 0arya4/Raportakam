@@ -48,7 +48,7 @@ export default function Landing() {
       <Navbar />
 
       {/* ── HERO ─────────────────────────────────── */}
-      <section ref={heroRef} className="relative min-h-screen flex items-start justify-center overflow-hidden pt-28 px-4">
+      <section ref={heroRef} className="relative min-h-screen flex items-start justify-center overflow-hidden pt-32 px-4">
 
         {/* Animated background */}
         <div className="absolute inset-0 pointer-events-none">
@@ -80,7 +80,7 @@ export default function Landing() {
         <motion.div style={{ y }} className="relative z-10 w-full max-w-[1400px] mx-auto px-8 text-center">
           <motion.div
             custom={0} variants={fadeUp} initial="hidden" animate={loaded ? "show" : "hidden"}
-            className="inline-flex items-center gap-2 bg-yellow-400/10 border border-yellow-500/20 text-yellow-400 text-xs font-medium px-4 py-1.5 rounded-full mb-6"
+            className="inline-flex items-center gap-2 bg-yellow-400/10 border border-yellow-500/20 text-yellow-400 text-xs font-medium px-4 py-1.5 rounded-full mb-6 mt-10"
           >
             <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse" />
             دروستکردنی ڕاپۆرت سیمینار بە ژیری دەستکرد
