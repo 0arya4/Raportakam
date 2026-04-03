@@ -281,7 +281,7 @@ export default function Create() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto flex flex-col">
         <AnimatePresence mode="wait">
 
           {/* ── STEP 1: Topic ── */}
@@ -587,7 +587,7 @@ export default function Create() {
 
           {/* ── STEP 5: Generating / Done ── */}
           {step === 5 && (
-            <motion.div key="s5" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-xl text-center">
+            <motion.div key="s5" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-xl text-center mx-auto min-h-full flex flex-col items-center justify-center py-10 px-6">
               {!result && !error && (
                 <>
                   <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
