@@ -236,22 +236,22 @@ export default function Create() {
   }
 
   return (
-    <div className="h-screen bg-slate-950 flex flex-col overflow-hidden pt-2">
+    <div className="bg-slate-950 flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
       {/* Top bar */}
-      <div className="h-28 border-b border-slate-800 flex items-center justify-between px-10 flex-shrink-0">
+      <div className="h-16 sm:h-28 border-b border-slate-800 flex items-center justify-between px-4 sm:px-10 flex-shrink-0">
         {/* Steps */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           {STEPS.map((label, i) => {
             const n = i + 1
             const done = step > n
             const active = step === n
             return (
-              <div key={n} className="flex items-center gap-1.5">
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              <div key={n} className="flex items-center gap-1 sm:gap-1.5">
+                <div className={`flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-sm font-medium transition-all ${
                   active ? 'bg-yellow-400/20 text-yellow-400' :
                   done ? 'text-green-400' : 'text-slate-600'
                 }`}>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all flex-shrink-0 ${
                     active ? 'bg-yellow-400 text-slate-950' :
                     done ? 'bg-green-500 text-white' : 'bg-slate-800 text-slate-600'
                   }`}>
@@ -259,23 +259,23 @@ export default function Create() {
                   </div>
                   <span className="hidden sm:block">{label}</span>
                 </div>
-                {i < 4 && <div className={`w-4 h-px transition-all ${done ? 'bg-green-500' : 'bg-slate-800'}`} />}
+                {i < 4 && <div className={`w-2 sm:w-4 h-px transition-all ${done ? 'bg-green-500' : 'bg-slate-800'}`} />}
               </div>
             )
           })}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {profile && (
             profile.plan === 'pro' ? (
-              <motion.span animate={{ textShadow: ['0 0 8px #f97316', '0 0 16px #f97316', '0 0 8px #f97316'] }} transition={{ duration: 2, repeat: Infinity }} className="text-base font-bold text-orange-400">پلانی پڕۆ</motion.span>
+              <motion.span animate={{ textShadow: ['0 0 8px #f97316', '0 0 16px #f97316', '0 0 8px #f97316'] }} transition={{ duration: 2, repeat: Infinity }} className="text-xs sm:text-base font-bold text-orange-400">👑 پڕۆ</motion.span>
             ) : (
-              <span className="text-lg text-slate-400">پلانی خۆڕایی <span className="text-yellow-400 font-bold">{profile.points ?? 100}</span> خاڵ</span>
+              <span className="text-xs sm:text-lg text-slate-400"><span className="text-yellow-400 font-bold">{profile.points ?? 100}</span> خاڵ</span>
             )
           )}
-          <button onClick={() => navigate('/')} className="flex items-center gap-2">
-            <span className="font-bold text-white text-3xl">ڕاپۆرتەکەم</span>
-            <img src={logo} alt="logo" className="w-24 h-24 object-contain" />
+          <button onClick={() => navigate('/')} className="flex items-center gap-1 sm:gap-2">
+            <span className="font-bold text-white text-base sm:text-3xl">ڕاپۆرتەکەم</span>
+            <img src={logo} alt="logo" className="w-10 h-10 sm:w-24 sm:h-24 object-contain" />
           </button>
         </div>
       </div>
@@ -286,10 +286,10 @@ export default function Create() {
 
           {/* ── STEP 1: Topic ── */}
           {step === 1 && (
-            <motion.div key="s1" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="flex flex-col min-h-full px-8 lg:px-16 py-10 w-full max-w-5xl mx-auto">
-              <div className="mb-8">
-                <h1 className="text-4xl sm:text-6xl font-black mb-3">بابەتەکەت چییە؟</h1>
-                <p className="text-slate-500 text-lg">ناوی فایل و بابەتەکەت بنووسە</p>
+            <motion.div key="s1" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="flex flex-col min-h-full px-4 sm:px-8 lg:px-16 py-5 sm:py-10 w-full max-w-5xl mx-auto">
+              <div className="mb-5 sm:mb-8">
+                <h1 className="text-3xl sm:text-6xl font-black mb-2">بابەتەکەت چییە؟</h1>
+                <p className="text-slate-500 text-sm sm:text-lg">ناوی فایل و بابەتەکەت بنووسە</p>
               </div>
 
               <div className="flex-1 flex flex-col gap-5 mb-8">
@@ -300,7 +300,7 @@ export default function Create() {
                 <div className="flex-1 bg-slate-900 border border-slate-700 focus-within:border-yellow-500/60 rounded-2xl p-6 transition-all flex flex-col">
                   <textarea value={form.prompt} onChange={e => set('prompt', e.target.value)}
                     placeholder="بابەتەکەت بە وردی ڕووندەکەیتەوە... زیاتر بنووسی، باشتر دەبێت" dir="rtl"
-                    className="flex-1 w-full bg-transparent resize-none outline-none text-white placeholder-slate-500 text-base leading-relaxed min-h-[200px]" />
+                    className="flex-1 w-full bg-transparent resize-none outline-none text-white placeholder-slate-500 text-base leading-relaxed min-h-[120px] sm:min-h-[200px]" />
                   <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
                     <div className="flex items-center gap-2">
                       <label className="flex items-center gap-2 text-slate-400 hover:text-yellow-400 cursor-pointer transition text-sm">
@@ -341,9 +341,9 @@ export default function Create() {
 
           {/* ── STEP 2: Audience & Purpose ── */}
           {step === 2 && (
-            <motion.div key="s2" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-5xl mx-auto px-8 lg:px-16 py-10">
-              <h1 className="text-4xl sm:text-6xl font-black mb-3">بۆ کێ و بۆ چی؟</h1>
-              <p className="text-slate-500 text-lg mb-8">ئامانج و ئامانجدار دیاری بکە</p>
+            <motion.div key="s2" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-5xl mx-auto px-4 sm:px-8 lg:px-16 py-5 sm:py-10">
+              <h1 className="text-3xl sm:text-6xl font-black mb-2">بۆ کێ و بۆ چی؟</h1>
+              <p className="text-slate-500 text-sm sm:text-lg mb-5 sm:mb-8">ئامانج و ئامانجدار دیاری بکە</p>
 
               <div className="mb-6">
                 <p className="text-sm font-semibold text-white mb-3">ئامانجدار کێیە؟</p>
@@ -395,8 +395,8 @@ export default function Create() {
 
           {/* ── STEP 3: Style ── */}
           {step === 3 && (
-            <motion.div key="s3" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-5xl mx-auto px-8 lg:px-16 py-10">
-              <h1 className="text-4xl sm:text-6xl font-black mb-3">شێوازەکە</h1>
+            <motion.div key="s3" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-5xl mx-auto px-4 sm:px-8 lg:px-16 py-5 sm:py-10">
+              <h1 className="text-3xl sm:text-6xl font-black mb-2">شێوازەکە</h1>
               <p className="text-slate-500 text-lg mb-8">دیزاین و ئاھەنگی نووسین هەڵبژێرە</p>
 
               {form.type === 'pptx' && (
@@ -491,8 +491,8 @@ export default function Create() {
 
           {/* ── STEP 4: Details ── */}
           {step === 4 && (
-            <motion.div key="s4" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-5xl mx-auto px-8 lg:px-16 py-10">
-              <h1 className="text-4xl sm:text-6xl font-black mb-3">وردەکاری</h1>
+            <motion.div key="s4" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-5xl mx-auto px-4 sm:px-8 lg:px-16 py-5 sm:py-10">
+              <h1 className="text-3xl sm:text-6xl font-black mb-2">وردەکاری</h1>
               <p className="text-slate-500 text-lg mb-6">ئاستی وردبوونەوە و ناوەڕۆک دیاری بکە</p>
 
               {/* XAL counter */}

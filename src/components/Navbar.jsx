@@ -133,7 +133,7 @@ export default function Navbar() {
                       initial={{ opacity: 0, y: -8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -8 }}
-                      className="absolute left-0 mt-2 w-44 bg-slate-900 border border-slate-700 rounded-xl shadow-xl overflow-hidden"
+                      className="absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-700 rounded-xl shadow-xl overflow-hidden z-50"
                     >
                       {user?.email === 'aryagg036@gmail.com' && (
                       <Link to="/admin" onClick={() => setMenuOpen(false)}

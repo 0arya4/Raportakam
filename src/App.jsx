@@ -10,6 +10,7 @@ import Register from './pages/Register'
 import History from './pages/History'
 import Admin from './pages/Admin'
 import Payment from './pages/Payment'
+import AuthCallback from './pages/AuthCallback'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/pricing" element={<ProtectedRoute><Pricing /></ProtectedRoute>} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/payment" element={<Payment />} />
             <Route path="/history" element={
               <ProtectedRoute>
