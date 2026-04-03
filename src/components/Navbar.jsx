@@ -74,7 +74,7 @@ export default function Navbar() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('profiles').select('full_name').eq('id', user.id).single()
+    supabase.from('profiles').select('full_name, plan, points').eq('id', user.id).single()
       .then(({ data }) => { if (data) setProfile(data) })
     supabase.from('generations').select('id, file_name, output_type, created_at, file_url')
       .eq('user_id', user.id).order('created_at', { ascending: false }).limit(5)
@@ -195,10 +195,27 @@ export default function Navbar() {
         </div>
 
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2">
-          <span className="text-lg font-bold text-white">ڕاپۆرتەکەم</span>
-          <motion.img whileHover={{ scale: 1.1, rotate: 5 }} src={logo} alt="ڕاپۆرتەکەم" className="w-16 h-16 object-contain" />
-        </Link>
+        <div className="flex items-center gap-3">
+          {user && profile && (
+            profile.plan === 'pro' ? (
+              <motion.span
+                animate={{ textShadow: ['0 0 8px #f97316', '0 0 16px #f97316', '0 0 8px #f97316'] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="text-xs font-bold text-orange-400"
+              >
+                پلانی پڕۆ
+              </motion.span>
+            ) : (
+              <span className="text-xs font-medium text-slate-400">
+                <span className="text-yellow-400 font-bold">{profile.points ?? 50}</span> خاڵ
+              </span>
+            )
+          )}
+          <Link to="/" className="flex items-center gap-2">
+            <span className="text-lg font-bold text-white">ڕاپۆرتەکەم</span>
+            <motion.img whileHover={{ scale: 1.1, rotate: 5 }} src={logo} alt="ڕاپۆرتەکەم" className="w-16 h-16 object-contain" />
+          </Link>
+        </div>
       </div>
     </motion.nav>
   )

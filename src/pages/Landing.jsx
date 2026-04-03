@@ -48,7 +48,7 @@ export default function Landing() {
       <Navbar />
 
       {/* ── HERO ─────────────────────────────────── */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-14">
+      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-14 px-4">
 
         {/* Animated background */}
         <div className="absolute inset-0 pointer-events-none">
@@ -77,7 +77,7 @@ export default function Landing() {
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] object-contain pointer-events-none select-none"
         />
 
-        <motion.div style={{ y }} className="relative z-10 max-w-7xl mx-auto px-6 text-center">
+        <motion.div style={{ y }} className="relative z-10 w-full max-w-[1400px] mx-auto px-8 text-center">
           <motion.div
             custom={0} variants={fadeUp} initial="hidden" animate={loaded ? "show" : "hidden"}
             className="inline-flex items-center gap-2 bg-yellow-400/10 border border-yellow-500/20 text-yellow-400 text-xs font-medium px-4 py-1.5 rounded-full mb-6"
@@ -88,7 +88,7 @@ export default function Landing() {
 
           <motion.h1
             custom={1} variants={fadeUp} initial="hidden" animate={loaded ? "show" : "hidden"}
-            className="text-5xl md:text-7xl lg:text-8xl font-black leading-tight mb-5 tracking-tight"
+            className="text-6xl md:text-8xl lg:text-9xl font-black leading-tight mb-6 tracking-tight"
           >
             بیرۆکەکەت بنووسە،
             <br />
@@ -144,7 +144,7 @@ export default function Landing() {
           {/* Hero card */}
           <motion.div
             custom={5} variants={fadeUp} initial="hidden" animate={loaded ? "show" : "hidden"}
-            className="relative max-w-3xl mx-auto"
+            className="relative max-w-4xl mx-auto"
           >
             <div className="absolute -inset-0.5 rounded-2xl opacity-40 blur-sm" style={{ background: 'linear-gradient(135deg, #eab308, #f97316, #a855f7)' }} />
             <div className="relative bg-slate-900 rounded-2xl p-5 border border-slate-800">
@@ -181,7 +181,7 @@ export default function Landing() {
         <div className="absolute inset-0 pointer-events-none" style={{
           background: 'radial-gradient(ellipse 60% 40% at 50% 50%, rgba(234,179,8,0.04) 0%, transparent 70%)'
         }} />
-        <div className="max-w-7xl mx-auto relative">
+        <div className="max-w-[1400px] mx-auto relative">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-12">
             <p className="text-yellow-400 text-xs font-semibold tracking-widest uppercase mb-2">پڕۆسەکە</p>
             <h2 className="text-3xl font-black mb-2">چۆن کاردەکات؟</h2>
