@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import InfoButton from '../components/InfoButton'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import logo from '../assets/logo.png.png'
@@ -254,13 +255,16 @@ export default function Create() {
                     placeholder="بابەتەکەت بە وردی ڕووندەکەیتەوە... زیاتر بنووسی، باشتر دەبێت" dir="rtl" rows={4}
                     className="w-full bg-transparent resize-none outline-none text-white placeholder-slate-500 text-sm leading-relaxed" />
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-800">
-                    <label className="flex items-center gap-2 text-slate-400 hover:text-yellow-400 cursor-pointer transition text-xs">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                      {form.uploadedFile ? form.uploadedFile.name : 'فایل هاوپێچ بکە (PDF, CSV)'}
-                      <input type="file" className="hidden" accept=".pdf,.csv,.txt" onChange={e => set('uploadedFile', e.target.files[0])} />
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 text-slate-400 hover:text-yellow-400 cursor-pointer transition text-xs">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
+                        {form.uploadedFile ? form.uploadedFile.name : 'نمونەت لایە؟ داینێ!'}
+                        <input type="file" className="hidden" accept=".pdf,.csv,.txt,.docx" onChange={e => set('uploadedFile', e.target.files[0])} />
+                      </label>
+                      <InfoButton text="فایلێک هاوپێچ بکە (PDF, Word, CSV, TXT) تا زیرەکی دەستکردی ناوەڕۆکەکەی بخوێنێتەوە و بەکاری بهێنێت لە دروستکردنی فایلەکەدا." />
+                    </div>
                     <span className="text-xs text-slate-600">{form.prompt.length} پیت</span>
                   </div>
                 </div>
