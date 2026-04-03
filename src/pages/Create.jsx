@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import InfoButton from '../components/InfoButton'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -137,6 +137,13 @@ const STEPS = ['بابەت', 'ئامانج', 'شێواز', 'وردەکاری', '
 export default function Create() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const [profile, setProfile] = useState(null)
+
+  useEffect(() => {
+    if (!user) return
+    supabase.from('profiles').select('full_name, plan, points').eq('id', user.id).single()
+      .then(({ data }) => { if (data) setProfile(data) })
+  }, [user])
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({
     prompt: '', fileName: '', type: 'pptx',
@@ -229,10 +236,19 @@ export default function Create() {
           })}
         </div>
 
-        <button onClick={() => navigate('/')} className="flex items-center gap-2">
-          <img src={logo} alt="logo" className="w-7 h-7 object-contain" />
-          <span className="font-bold text-white text-sm">ڕاپۆرتەکەم</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {profile && (
+            profile.plan === 'pro' ? (
+              <motion.span animate={{ textShadow: ['0 0 8px #f97316', '0 0 16px #f97316', '0 0 8px #f97316'] }} transition={{ duration: 2, repeat: Infinity }} className="text-xs font-bold text-orange-400">پلانی پڕۆ</motion.span>
+            ) : (
+              <span className="text-xs text-slate-400"><span className="text-yellow-400 font-bold">{profile.points ?? 50}</span> خاڵ</span>
+            )
+          )}
+          <button onClick={() => navigate('/')} className="flex items-center gap-2">
+            <span className="font-bold text-white text-sm">ڕاپۆرتەکەم</span>
+            <img src={logo} alt="logo" className="w-8 h-8 object-contain" />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
