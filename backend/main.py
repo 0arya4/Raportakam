@@ -55,6 +55,13 @@ def detect_language(prompt: str) -> str:
     for kw in kurdish_keywords:
         if kw.lower() in prompt_lower:
             return 'kurdish'
+
+    # Check for Kurdish/Arabic characters
+    # Unicode range for Arabic: 0600–06FF
+    import re
+    if re.search(r'[\u0600-\u06FF]', prompt):
+        return 'kurdish'
+
     return 'english'
 
 
@@ -129,7 +136,7 @@ Output ONLY the JSON, nothing else."""
         user = f"{create_word_phrase}: {prompt}{extra}"
 
     message = claude.messages.create(
-        model="claude-sonnet-4-6",
+        model="claude-3-5-sonnet-20240620",
         max_tokens=8192,
         messages=[{"role": "user", "content": user}],
         system=system,
@@ -282,9 +289,10 @@ async def generate(
                     if path:
                         slide["image_path"] = path
 
+            lang = detect_language(prompt)
             yield f"data: {json.dumps({'status': 'creating_file'})}\n\n"
             local_path = os.path.join(TEMP_DIR, f"{file_id}.pptx")
-            await asyncio.to_thread(create_pptx, data, local_path, theme, style)
+            await asyncio.to_thread(create_pptx, data, local_path, theme, style, lang)
             filename = f"{file_id}.pptx"
             content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
         else:
