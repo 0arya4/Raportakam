@@ -76,6 +76,13 @@ def generate_presentation(data: dict, output_path: str = None, theme_id: str = "
         title_layout = prs.slide_layouts[0]
         slide = prs.slides.add_slide(title_layout)
         
+        # Clear hardcoded raw text from Gamma that isn't a placeholder
+        for shape in list(slide.shapes):
+            if not shape.is_placeholder and hasattr(shape, "text") and shape.has_text_frame:
+                if shape.text.strip():
+                    sp = shape.element
+                    sp.getparent().remove(sp)
+
         # Try to find exactly 2 text placeholders (one for title, one for subtitle)
         text_phs = [ph for ph in slide.placeholders if ph.placeholder_format.type != 18]
         if len(text_phs) >= 2:
@@ -83,6 +90,13 @@ def generate_presentation(data: dict, output_path: str = None, theme_id: str = "
             text_phs[1].text = subtitle_text
         elif len(text_phs) == 1:
             text_phs[0].text = title_text + "\n" + subtitle_text
+            
+        for ph in text_phs:
+            if ph.has_text_frame:
+                for paragraph in ph.text_frame.paragraphs:
+                    paragraph.alignment = align
+                    for run in paragraph.runs:
+                        run.font.color.rgb = theme["title"]
     else:
         blank_layout = prs.slide_layouts[6]
         slide = prs.slides.add_slide(blank_layout)
@@ -191,6 +205,17 @@ def generate_presentation(data: dict, output_path: str = None, theme_id: str = "
                 
             slide = prs.slides.add_slide(l_to_use)
             
+            title_injected = False
+            bullets_injected = False
+            
+            # Clear hardcoded raw text from Gamma that isn't a placeholder
+            for shape in list(slide.shapes):
+                if not shape.is_placeholder and hasattr(shape, "text") and shape.has_text_frame:
+                    if shape.text.strip():
+                        # Destroy the hardcoded text shape to stop overlapping
+                        sp = shape.element
+                        sp.getparent().remove(sp)
+
             # Fill the placeholders dynamically
             for ph in slide.placeholders:
                 if ph.placeholder_format.type == 18:
@@ -201,22 +226,33 @@ def generate_presentation(data: dict, output_path: str = None, theme_id: str = "
                                 ph.insert_picture(img_path)
                             except Exception: pass
                 else:
-                    # Treat it as a text box
                     if not ph.text:
-                        # Simple rule: if we haven't typed the title yet, type the title.
-                        current = ph.text
                         title_str = s.get("title", "")
-                        bullets_str = "\n".join([f"●  {b}" for b in content])
+                        bullets_str = "\n".join([f"  {b}" for b in content])
                         
-                        # Decide if this box should hold Title or Bullets or Both based on size/number of boxes
-                        if len(slide.placeholders) == 1:
+                        text_phs = [p for p in slide.placeholders if p.placeholder_format.type != 18]
+                        if len(text_phs) == 1:
                             ph.text = title_str + "\n\n" + bullets_str
                         else:
-                            # Heuristic: top-most or first box is likely title
-                            if ph.placeholder_format.idx == min(p.placeholder_format.idx for p in slide.placeholders if p.placeholder_format.type != 18):
-                                ph.text = title_str
+                            min_idx = min(p.placeholder_format.idx for p in text_phs)
+                            if ph.placeholder_format.idx == min_idx:
+                                if not title_injected:
+                                    ph.text = title_str
+                                    title_injected = True
                             else:
-                                ph.text = bullets_str
+                                if not bullets_injected:
+                                    ph.text = bullets_str
+                                    bullets_injected = True
+                                else:
+                                    ph.text = ""
+
+                        # Force format the font so it isn't black
+                        if ph.has_text_frame:
+                            for paragraph in ph.text_frame.paragraphs:
+                                paragraph.alignment = align
+                                for run in paragraph.runs:
+                                    run.font.color.rgb = theme["text"]
+
 
         else:
             slide = prs.slides.add_slide(blank_layout)
@@ -287,13 +323,18 @@ def generate_presentation(data: dict, output_path: str = None, theme_id: str = "
                 bullet_size = 17
 
             else:
-                bar = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.33), Inches(0.08))
-                bar.fill.solid(); bar.fill.fore_color.rgb = theme["accent"]; bar.line.fill.background()
-                tb = slide.shapes.add_textbox(Inches(0.8), Inches(0.4), Inches(11.73), Inches(0.8))
-                add_text(tb.text_frame, s.get("title", ""), 28, True, theme["title"], align=align)
-                text_x = Inches(1) if lang == "kurdish" and has_img else Inches(5.3) if has_img else Inches(1)
-                text_y, text_w, text_h = Inches(1.3), Inches(7.2) if has_img else Inches(11.3), Inches(5.5)
-                bullet_size = 18
+                # Header block
+                header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.33), Inches(1.3))
+                header.fill.solid(); header.fill.fore_color.rgb = theme["accent"]; header.line.fill.background()
+                # Accent bottom strip
+                strip = slide.shapes.add_shape(1, Inches(0), Inches(7.35), Inches(13.33), Inches(0.15))
+                strip.fill.solid(); strip.fill.fore_color.rgb = theme["accent"]; strip.line.fill.background()
+                # Title inside header
+                tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.1), Inches(12.33), Inches(1.1))
+                add_text(tb.text_frame, s.get("title", ""), 30, True, theme["bg"], align=align)
+                text_x = Inches(0.8) if lang == "kurdish" and has_img else Inches(5.3) if has_img else Inches(0.8)
+                text_y, text_w, text_h = Inches(1.45), Inches(7.0) if has_img else Inches(11.73), Inches(5.6)
+                bullet_size = 20
 
             tb_content = slide.shapes.add_textbox(text_x, text_y, text_w, text_h)
             tf = tb_content.text_frame; tf.word_wrap = True; tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE

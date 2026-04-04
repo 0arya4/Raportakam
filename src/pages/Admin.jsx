@@ -445,6 +445,7 @@ export default function Admin() {
                   <thead>
                     <tr className="border-b border-slate-800">
                       <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">#</th>
+                      <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">بەکارهێنەر</th>
                       <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">داواکاری</th>
                       <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">ڕێگای پارەدان</th>
                       <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">ژمارە</th>
@@ -464,6 +465,14 @@ export default function Admin() {
                     ) : filteredOrders.map((o, i) => (
                       <tr key={o.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition">
                         <td className="px-5 py-3.5 text-slate-600 text-xs">{i + 1}</td>
+                        <td className="px-5 py-3.5">
+                          {(() => { const u = users.find(u => u.id === o.user_id); return u ? (
+                            <div>
+                              <p className="text-white text-xs font-medium">{u.full_name || '—'}</p>
+                              <p className="text-slate-500 text-xs" dir="ltr">{u.email}</p>
+                            </div>
+                          ) : <span className="text-slate-600 text-xs">—</span> })()}
+                        </td>
                         <td className="px-5 py-3.5">
                           {o.order_type === 'pro'
                             ? <span className="text-yellow-400 font-bold text-xs">پلانی پرۆ</span>

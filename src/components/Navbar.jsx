@@ -228,7 +228,8 @@ export default function Navbar() {
               <motion.div
                 animate={{ boxShadow: ['0 0 12px rgba(249,115,22,0.5)', '0 0 24px rgba(249,115,22,0.8)', '0 0 12px rgba(249,115,22,0.5)'] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="flex items-center gap-1 sm:gap-1.5 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-orange-500/60 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg"
+                onClick={() => navigate('/pricing')}
+                className="flex items-center gap-1 sm:gap-1.5 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-orange-500/60 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg cursor-pointer"
               >
                 <span className="text-sm sm:text-base">👑</span>
                 <motion.span
@@ -240,9 +241,9 @@ export default function Navbar() {
                 </motion.span>
               </motion.div>
             ) : (
-              <span className="text-xs sm:text-sm font-medium text-slate-400 bg-slate-800 border border-slate-700 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg">
-                <span className="hidden sm:inline">پلانی خۆڕایی </span><span className="text-yellow-400 font-bold">{profile.points ?? 100}</span><span className="hidden sm:inline"> خاڵ</span><span className="sm:hidden"> خاڵ</span>
-              </span>
+              <Link to="/pricing" className="text-xs sm:text-sm font-medium text-slate-400 bg-slate-800 border border-slate-700 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg hover:border-orange-500/50 hover:bg-slate-700 transition">
+                <span className="hidden sm:inline">پلانی خۆڕایی </span><span className="text-orange-400 font-bold">{profile.points ?? 100}</span><span className="hidden sm:inline"> خاڵ</span><span className="sm:hidden"> خاڵ</span>
+              </Link>
             )
           )}
           <Link to="/" className="flex items-center gap-1.5 sm:gap-2">
