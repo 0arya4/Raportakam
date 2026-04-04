@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
+import { useSearchParams } from 'react-router-dom'
 import InfoButton from '../components/InfoButton'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -30,6 +33,8 @@ const THEMES = [
   { id: 'silver',   label: 'زیوین',            preview: 'from-slate-300 to-slate-500' },
 ]
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://raportakam.onrender.com'
+
 const AUDIENCES = [
   { id: 'students',  label: 'خوێندکاران',    icon: '🎓' },
   { id: 'business',  label: 'بازرگانی',       icon: '💼' },
@@ -51,7 +56,7 @@ const PURPOSES = [
 const LEVELS = [
   { id: 'beginner',      label: 'سەرەتایی',   desc: 'شیکاری سادە، زمانی ئاسان' },
   { id: 'intermediate',  label: 'ناوەندی',     desc: 'ئاستی مامناوەند' },
-  { id: 'expert',        label: 'پسپۆڕانە',   desc: 'کەڵکوتراو و وردبوونەوە' },
+  { id: 'expert',        label: 'پسپۆڕانە',   desc: 'شیکردنەوە و وردبوونەوە' },
 ]
 
 const STYLES = [
@@ -69,9 +74,9 @@ const TONES = [
 ]
 
 const DETAIL_LEVELS = [
-  { id: 'brief',    label: 'کورت',     desc: '3 خاڵ بۆ هەر سلاید' },
-  { id: 'normal',   label: 'مامناوەند', desc: '5 خاڵ بۆ هەر سلاید' },
-  { id: 'detailed', label: 'وردبوونەوە', desc: '7+ خاڵ + ڕوونکردنەوە' },
+  { id: 'brief',    label: 'کورت',     desc: '' },
+  { id: 'normal',   label: 'مامناوەند', desc: '' },
+  { id: 'detailed', label: 'وردبوونەوە', desc: '' },
 ]
 
 // SLIDE_COUNTS is no longer needed since we are using a numeric input
@@ -96,7 +101,6 @@ async function generateFile(form, onStatus) {
   data.append('file_name', form.fileName)
   if (form.uploadedFile) data.append('file', form.uploadedFile)
 
-  const API_URL = import.meta.env.VITE_API_URL || 'https://raportakam.onrender.com'
   let res
   try {
     res = await fetch(`${API_URL}/generate`, { method: 'POST', body: data })
@@ -111,19 +115,38 @@ async function generateFile(form, onStatus) {
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+
+  const processLines = (lines) => {
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      try {
+        const event = JSON.parse(line.slice(6))
+        if (event.status === 'error') throw new Error(event.detail)
+        if (event.status === 'done') return event.result
+        if (onStatus) onStatus(event)
+      } catch (e) {
+        if (e.message !== 'done') continue
+        throw e
+      }
+    }
+    return null
+  }
+
   while (true) {
     const { done, value } = await reader.read()
-    if (done) break
+    if (done) {
+      // Process any remaining data in buffer
+      if (buffer.trim()) {
+        const result = processLines(buffer.split('\n'))
+        if (result) return result
+      }
+      break
+    }
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
     buffer = lines.pop()
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const event = JSON.parse(line.slice(6))
-      if (event.status === 'error') throw new Error(event.detail)
-      if (event.status === 'done') return event.result
-      if (onStatus) onStatus(event)
-    }
+    const result = processLines(lines)
+    if (result) return result
   }
   throw new Error('Stream ended unexpectedly')
 }
@@ -136,8 +159,32 @@ const pageVariants = {
 
 const STEPS = ['بابەت', 'ئامانج', 'شێواز', 'وردەکاری', 'دروستکردن']
 
+const THEME_SLIDE_STYLES = {
+  dark:     { bg: 'linear-gradient(135deg,#0f172a,#1e293b)', title: '#f1f5f9', bullet: '#94a3b8', accent: '#eab308', num: '#eab308' },
+  light:    { bg: 'linear-gradient(135deg,#f8fafc,#e2e8f0)', title: '#0f172a', bullet: '#475569', accent: '#3b82f6', num: '#3b82f6' },
+  yellow:   { bg: 'linear-gradient(135deg,#92400e,#d97706)', title: '#fff',    bullet: '#fde68a', accent: '#fef08a', num: '#fef08a' },
+  blue:     { bg: 'linear-gradient(135deg,#1e3a8a,#1e40af)', title: '#fff',    bullet: '#bfdbfe', accent: '#60a5fa', num: '#60a5fa' },
+  green:    { bg: 'linear-gradient(135deg,#064e3b,#065f46)', title: '#fff',    bullet: '#a7f3d0', accent: '#34d399', num: '#34d399' },
+  purple:   { bg: 'linear-gradient(135deg,#4c1d95,#6d28d9)', title: '#fff',    bullet: '#e9d5ff', accent: '#c084fc', num: '#c084fc' },
+  red:      { bg: 'linear-gradient(135deg,#7f1d1d,#991b1b)', title: '#fff',    bullet: '#fecaca', accent: '#f87171', num: '#f87171' },
+  orange:   { bg: 'linear-gradient(135deg,#7c2d12,#c2410c)', title: '#fff',    bullet: '#fed7aa', accent: '#fb923c', num: '#fb923c' },
+  pink:     { bg: 'linear-gradient(135deg,#831843,#be185d)', title: '#fff',    bullet: '#fbcfe8', accent: '#f472b6', num: '#f472b6' },
+  teal:     { bg: 'linear-gradient(135deg,#134e4a,#0f766e)', title: '#fff',    bullet: '#99f6e4', accent: '#2dd4bf', num: '#2dd4bf' },
+  indigo:   { bg: 'linear-gradient(135deg,#1e1b4b,#312e81)', title: '#fff',    bullet: '#c7d2fe', accent: '#818cf8', num: '#818cf8' },
+  navy:     { bg: 'linear-gradient(135deg,#164e63,#0e7490)', title: '#fff',    bullet: '#bae6fd', accent: '#38bdf8', num: '#38bdf8' },
+  gold:     { bg: 'linear-gradient(135deg,#78350f,#b45309)', title: '#fff',    bullet: '#fde68a', accent: '#fbbf24', num: '#fbbf24' },
+  forest:   { bg: 'linear-gradient(135deg,#14532d,#166534)', title: '#fff',    bullet: '#bbf7d0', accent: '#86efac', num: '#86efac' },
+  sunset:   { bg: 'linear-gradient(135deg,#92400e,#ca8a04)', title: '#fff',    bullet: '#fef08a', accent: '#fcd34d', num: '#fcd34d' },
+  ocean:    { bg: 'linear-gradient(135deg,#0c4a6e,#0369a1)', title: '#fff',    bullet: '#bae6fd', accent: '#38bdf8', num: '#38bdf8' },
+  midnight: { bg: 'linear-gradient(135deg,#4a044e,#701a75)', title: '#fff',    bullet: '#f5d0fe', accent: '#e879f9', num: '#e879f9' },
+  rose:     { bg: 'linear-gradient(135deg,#881337,#9f1239)', title: '#fff',    bullet: '#fecdd3', accent: '#fb7185', num: '#fb7185' },
+  brown:    { bg: 'linear-gradient(135deg,#451a03,#78350f)', title: '#fff',    bullet: '#fde68a', accent: '#d97706', num: '#d97706' },
+  silver:   { bg: 'linear-gradient(135deg,#334155,#475569)', title: '#fff',    bullet: '#cbd5e1', accent: '#e2e8f0', num: '#e2e8f0' },
+}
+
 export default function Create() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const [profile, setProfile] = useState(null)
 
@@ -148,13 +195,15 @@ export default function Create() {
   }, [user])
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({
-    prompt: '', fileName: '', type: 'pptx',
+    prompt: '', fileName: '', type: searchParams.get('type') === 'word' ? 'word' : 'pptx',
     audience: 'students', purpose: 'education', level: 'intermediate',
     slides: 10, theme: 'dark', tone: 'formal', detail: 'normal', style: 'classic',
     includeStats: false, includeExamples: false, includeConclusion: false, includeImages: false, includeAIImages: false,
     uploadedFile: null,
   })
   const [result, setResult] = useState(null)
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const slideRefs = useRef([])
   const [error, setError] = useState('')
   const [statusMsg, setStatusMsg] = useState('')
 
@@ -272,7 +321,7 @@ export default function Create() {
             profile.plan === 'pro' ? (
               <motion.span animate={{ textShadow: ['0 0 8px #f97316', '0 0 16px #f97316', '0 0 8px #f97316'] }} transition={{ duration: 2, repeat: Infinity }} className="text-xs sm:text-base font-bold text-orange-400">👑 پڕۆ</motion.span>
             ) : (
-              <span className="text-xs sm:text-lg text-slate-400"><span className="text-yellow-400 font-bold">{profile.points ?? 100}</span> خاڵ</span>
+              <span className="text-xs sm:text-lg text-slate-400"><span className="text-orange-400 font-bold">{profile.points ?? 100}</span> خاڵ</span>
             )
           )}
           <button onClick={() => navigate('/')} className="flex items-center gap-1 sm:gap-2">
@@ -301,7 +350,7 @@ export default function Create() {
 
                 <div className="flex-1 bg-slate-900 border border-slate-700 focus-within:border-yellow-500/60 rounded-2xl p-6 transition-all flex flex-col">
                   <textarea value={form.prompt} onChange={e => set('prompt', e.target.value)}
-                    placeholder="بابەتەکەت بە وردی ڕووندەکەیتەوە... زیاتر بنووسی، باشتر دەبێت" dir="rtl"
+                    placeholder="بابەتەکەت بە وردی ڕوون بکەرەوە ، تا زیاتر بنووسیت باشتر دەبێت" dir="rtl"
                     className="flex-1 w-full bg-transparent resize-none outline-none text-white placeholder-slate-500 text-base leading-relaxed min-h-[120px] sm:min-h-[200px]" />
                   <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
                     <div className="flex items-center gap-2">
@@ -309,34 +358,23 @@ export default function Create() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                         </svg>
-                        {form.uploadedFile ? form.uploadedFile.name : 'نمونەت لایە؟ داینێ!'}
+                        {form.uploadedFile ? form.uploadedFile.name : 'فایلێک ئەپلۆد بکە'}
                         <input type="file" className="hidden" accept=".pdf,.csv,.txt,.docx" onChange={e => set('uploadedFile', e.target.files[0])} />
                       </label>
-                      <InfoButton text="فایلێک هاوپێچ بکە (PDF, Word, CSV, TXT) تا زیرەکی دەستکردی ناوەڕۆکەکەی بخوێنێتەوە و بەکاری بهێنێت لە دروستکردنی فایلەکەدا." />
+                      <InfoButton text="فایلێک ئەپلۆد بکە (PDF, Word, CSV, TXT) تا زیرەکی دەستکردی ناوەڕۆکەکەی بخوێنێتەوە و بەکاری بهێنێت لە دروستکردنی فایلەکەدا." />
                     </div>
                     <span className="text-sm text-slate-600">{form.prompt.length} پیت</span>
                   </div>
                 </div>
               </div>
 
-              {/* Type */}
-              <div className="flex gap-4">
-                {[
-                  { id: 'pptx', label: 'سیمینار', icon: '📊', sub: 'PowerPoint' },
-                  { id: 'word', label: 'ڕاپۆرت',  icon: '📄', sub: 'Word' },
-                ].map(t => (
-                  <motion.button key={t.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                    onClick={() => set('type', t.id)}
-                    className={`flex items-center gap-4 px-7 py-5 rounded-2xl border flex-1 transition ${
-                      form.type === t.id ? 'border-yellow-400 bg-yellow-400/10 text-yellow-400' : 'border-slate-700 text-slate-400 hover:border-slate-600'
-                    }`}>
-                    <span className="text-3xl">{t.icon}</span>
-                    <div className="text-right">
-                      <div className="font-bold text-base">{t.label}</div>
-                      <div className="text-sm opacity-60">{t.sub}</div>
-                    </div>
-                  </motion.button>
-                ))}
+              {/* Type indicator */}
+              <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl border w-fit ${form.type === 'pptx' ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400' : 'border-blue-500/40 bg-blue-500/10 text-blue-400'}`}>
+                <span className="text-2xl">{form.type === 'pptx' ? '📊' : '📄'}</span>
+                <div className="text-right">
+                  <div className="font-bold text-sm">{form.type === 'pptx' ? 'سیمینار' : 'ڕاپۆرت'}</div>
+                  <div className="text-xs opacity-60">{form.type === 'pptx' ? 'PowerPoint' : 'Word'}</div>
+                </div>
               </div>
             </motion.div>
           )}
@@ -344,11 +382,10 @@ export default function Create() {
           {/* ── STEP 2: Audience & Purpose ── */}
           {step === 2 && (
             <motion.div key="s2" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-5xl mx-auto px-4 sm:px-8 lg:px-16 py-5 sm:py-10">
-              <h1 className="text-3xl sm:text-6xl font-black mb-2">بۆ کێ و بۆ چی؟</h1>
-              <p className="text-slate-500 text-sm sm:text-lg mb-5 sm:mb-8">ئامانج و ئامانجدار دیاری بکە</p>
+              <h1 className="text-3xl sm:text-6xl font-black mb-6 mt-4">بۆ کێ و بۆ چی؟</h1>
 
               <div className="mb-6">
-                <p className="text-sm font-semibold text-white mb-3">ئامانجدار کێیە؟</p>
+                <p className="text-sm font-semibold text-white mb-3">بۆ کێیە؟</p>
                 <div className="grid grid-cols-3 gap-2">
                   {AUDIENCES.map(a => (
                     <motion.button key={a.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
@@ -363,7 +400,7 @@ export default function Create() {
               </div>
 
               <div className="mb-6">
-                <p className="text-sm font-semibold text-white mb-3">ئامانج چییە؟</p>
+                <p className="text-sm font-semibold text-white mb-3">ئامانجت چییە؟</p>
                 <div className="grid grid-cols-3 gap-2">
                   {PURPOSES.map(p => (
                     <motion.button key={p.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
@@ -525,15 +562,14 @@ export default function Create() {
               </div>
 
               <div className="mb-6">
-                <p className="text-sm font-semibold text-white mb-3">چی تێبگات؟</p>
                 <div className="space-y-2">
                   {[
-                    { key: 'includeStats',      label: 'ئامار و ژمارە',       icon: '📊', desc: 'زیادکردنی داتا و ئامار',                   xal: '+1 خاڵ' },
-                    { key: 'includeExamples',   label: 'نموونەکان',            icon: '💡', desc: 'نموونەی ڕاستەقینە',                           xal: '+1 خاڵ' },
-                    { key: 'includeImages',     label: 'وێنە',                icon: '🖼️', desc: 'دانانی وێنە لە سڵایدەکان',                    xal: '' },
-                    { key: 'includeAIImages',   label: 'ڕەسمی Ai',            icon: '🤖', desc: 'دروستکردنی وێنە بە زیرەکی دەستکرد',           xal: '+3 خاڵ' },
-                    { key: 'includeConclusion', label: 'دەرئەنجام',            icon: '✅', desc: 'Conclusion',                                  xal: '' },
-                  ].map(opt => (
+                    { key: 'includeStats',      label: 'ئامار و ژمارە',       icon: '📊', desc: 'زیادکردنی داتا و ئامار',                   xal: '+1 خاڵ', pptxOnly: false },
+                    { key: 'includeExamples',   label: 'نموونەکان',            icon: '💡', desc: 'نموونەی ڕاستەقینە',                           xal: '+1 خاڵ', pptxOnly: false },
+                    { key: 'includeImages',     label: 'وێنە',                icon: '🖼️', desc: 'دانانی وێنە لە سڵایدەکان',                    xal: '',        pptxOnly: true },
+                    { key: 'includeAIImages',   label: 'ڕەسمی Ai',            icon: '🤖', desc: 'دروستکردنی وێنە بە زیرەکی دەستکرد',           xal: '+3 خاڵ', pptxOnly: true },
+                    { key: 'includeConclusion', label: 'دەرئەنجام',            icon: '✅', desc: 'Conclusion',                                  xal: '',        pptxOnly: false },
+                  ].filter(opt => !opt.pptxOnly || form.type === 'pptx').map(opt => (
                     <motion.button key={opt.key} whileTap={{ scale: 0.98 }}
                       onClick={() => {
                         const newVal = !form[opt.key]
@@ -589,7 +625,7 @@ export default function Create() {
 
           {/* ── STEP 5: Generating / Done ── */}
           {step === 5 && (
-            <motion.div key="s5" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className="w-full max-w-xl text-center mx-auto min-h-full flex flex-col items-center justify-center py-10 px-6">
+            <motion.div key="s5" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.3 }} className={`w-full mx-auto px-6 py-10 ${result ? 'max-w-3xl' : 'max-w-xl text-center min-h-full flex flex-col items-center justify-center'}`}>
               {!result && !error && (
                 <>
                   <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
@@ -606,22 +642,84 @@ export default function Create() {
               )}
 
               {result && (
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-                  <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-5xl mb-5">✅</motion.div>
-                  <h2 className="text-2xl font-bold mb-1">ئامادەیە!</h2>
-                  <p className="text-slate-400 text-sm mb-1">{result.title}</p>
-                  <p className="text-slate-600 text-xs mb-6">{xalNeeded} خاڵ بەکارهێنرا</p>
-                  <a href={result.r2_download ? `${API_URL}${result.r2_download}` : `${API_URL}${result.download_path}`} download>
-                    <motion.button whileHover={{ scale: 1.04, boxShadow: '0 0 30px rgba(234,179,8,0.4)' }} whileTap={{ scale: 0.97 }}
-                      className="flex items-center gap-2 text-slate-950 font-bold px-8 py-3.5 rounded-xl text-base mx-auto mb-4"
-                      style={{ background: 'linear-gradient(135deg, #eab308, #f97316)' }}>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                      داونلۆد بکە
-                    </motion.button>
-                  </a>
-                  <button onClick={resetForm} className="text-slate-500 hover:text-white text-sm transition">+ دروستکردنی نوێ</button>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full">
+                  <div className="text-center mb-6">
+                    <div className="text-4xl mb-3">✅</div>
+                    <h2 className="text-xl font-bold text-white">{result.title}</h2>
+                    <p className="text-slate-500 text-xs mt-1">{xalNeeded} خاڵ بەکارهێنرا</p>
+                  </div>
+
+                  {/* Slide Preview */}
+                  {form.type === 'pptx' && result.slides_data?.length > 0 && (() => {
+                    const ts = THEME_SLIDE_STYLES[form.theme] || THEME_SLIDE_STYLES.dark
+                    return (
+                      <div className="space-y-4 mb-8 max-w-2xl mx-auto">
+                        {result.slides_data.map((slide, i) => (
+                          <div key={i} ref={el => slideRefs.current[i] = el} className="rounded-2xl overflow-hidden shadow-2xl"
+                            style={{ background: ts.bg, aspectRatio: '16/9', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '6%', boxSizing: 'border-box', position: 'relative' }}>
+                            <div style={{ color: ts.num, fontSize: '11px', fontWeight: 700, marginBottom: '12px', opacity: 0.7, letterSpacing: '2px' }}>
+                              {String(i + 1).padStart(2, '0')} / {result.slides_data.length}
+                            </div>
+                            <div style={{ width: '40px', height: '3px', background: ts.accent, borderRadius: '2px', marginBottom: '16px' }} />
+                            <h3 style={{ color: ts.title, fontSize: 'clamp(14px,3vw,26px)', fontWeight: 900, margin: '0 0 16px', lineHeight: 1.2 }}>{slide.title}</h3>
+                            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                              {(slide.content || []).slice(0, 6).map((b, j) => (
+                                <li key={j} style={{ color: ts.bullet, fontSize: 'clamp(10px,1.8vw,15px)', padding: '3px 0', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                  <span style={{ color: ts.accent, flexShrink: 0, marginTop: '1px' }}>▸</span>
+                                  <span>{b}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
+
+                  {/* Download buttons */}
+                  <div className="flex flex-col gap-3 max-w-sm mx-auto">
+                    {form.type === 'pptx' && result.slides_data?.length > 0 && (
+                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                        disabled={pdfLoading}
+                        onClick={async () => {
+                          setPdfLoading(true)
+                          try {
+                            const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1280, 720] })
+                            for (let i = 0; i < slideRefs.current.length; i++) {
+                              const el = slideRefs.current[i]
+                              if (!el) continue
+                              const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: null })
+                              const imgData = canvas.toDataURL('image/jpeg', 0.95)
+                              if (i > 0) pdf.addPage([1280, 720], 'landscape')
+                              pdf.addImage(imgData, 'JPEG', 0, 0, 1280, 720)
+                            }
+                            pdf.save(`${result.file_name || 'raportakam'}.pdf`)
+                          } finally {
+                            setPdfLoading(false)
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-xl disabled:opacity-60"
+                        style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)' }}>
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span className="text-white">{pdfLoading ? 'چاوەڕێ بکە...' : 'داگرتن بە PDF'}</span>
+                      </motion.button>
+                    )}
+
+                    <a href={result.r2_download ? `${API_URL}${result.r2_download}?name=${encodeURIComponent(result.file_name || 'raportakam')}` : `${API_URL}${result.download_path}?name=${encodeURIComponent(result.file_name || 'raportakam')}`} download className="w-full">
+                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                        className="w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-xl text-slate-950"
+                        style={{ background: 'linear-gradient(135deg,#eab308,#f97316)' }}>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        {form.type === 'pptx' ? 'داگرتن بە PowerPoint' : 'داگرتن'}
+                      </motion.button>
+                    </a>
+
+                    <button onClick={resetForm} className="text-slate-500 hover:text-white text-sm transition text-center mt-1">+ دروستکردنی نوێ</button>
+                  </div>
                 </motion.div>
               )}
 
@@ -647,14 +745,22 @@ export default function Create() {
       {step < 5 && (
         <div className="h-16 border-t border-slate-800 flex items-center justify-between px-6 flex-shrink-0">
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-            onClick={() => step > 1 ? setStep(s => s - 1) : navigate('/')}
+            onClick={() => step > 1 ? setStep(s => s - 1) : navigate('/services')}
             className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition px-4 py-2 rounded-lg border border-slate-800 hover:border-slate-600">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            {step > 1 ? 'گەڕانەوە' : 'هەڵوەشاندن'}
+            گەڕانەوە
           </motion.button>
 
+          <div className="flex items-center gap-2">
+            {step === 4 && !hasEnoughXal && (
+              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                onClick={() => navigate('/pricing')}
+                className="flex items-center gap-1.5 text-yellow-400 font-bold px-4 py-2.5 rounded-xl text-sm border border-yellow-500/40 bg-yellow-500/10 hover:bg-yellow-500/20 transition">
+                خاڵ بکڕە
+              </motion.button>
+            )}
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             disabled={!canNext() || (step === 4 && !hasEnoughXal)}
             onClick={handleNext}
@@ -676,6 +782,7 @@ export default function Create() {
               </>
             )}
           </motion.button>
+          </div>
         </div>
       )}
     </div>

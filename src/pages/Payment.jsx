@@ -73,9 +73,9 @@ export default function Payment() {
     const msg = encodeURIComponent(
       `سڵاو، پارەم دانا بۆ ${orderLabel}\nڕێگای پارەدان: ${METHODS.find(m => m.id === method)?.label}\nژمارەی تەلەفۆنم: ${phone}\nناو: ${profile?.full_name || '—'}\nئیمەیڵ: ${user?.email || '—'}`
     )
-    window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=${msg}`, '_blank')
     setDone(true)
     setLoading(false)
+    window.location.href = `https://wa.me/${ADMIN_WHATSAPP}?text=${msg}`
   }
 
   if (done) {

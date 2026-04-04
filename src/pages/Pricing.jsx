@@ -17,8 +17,7 @@ const FREE_INCLUDED = [
 
 const PRO_FEATURES = [
   'کردنەوەی 15 بۆ 30 سڵاید بۆ یەک پرێسێنتەیشن',
-  'وێنەی AI',
-  'خاڵی بێکۆتا (Unlimited)',
+  'خاڵی بێسنوور (Unlimited)',
 ]
 
 const POINT_PACKAGES = [
