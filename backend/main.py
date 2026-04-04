@@ -82,37 +82,52 @@ def ask_claude(prompt: str, output_type: str, slides: int, tone: str, file_text:
         create_word_phrase = "Create a report about"
         extra = f"\n\nUploaded file content:\n{file_text}" if file_text else ""
 
-    detail_map = {"brief": "3 bullet points per slide, concise", "normal": "5 bullet points per slide, clear explanations", "detailed": "7+ bullet points per slide with full explanations and sub-points"}
+    detail_map = {
+        "brief":    "3 bullet points per slide — ultra short, 4-6 words each, punchy",
+        "normal":   "5 bullet points per slide — concise, max 10 words each, clear",
+        "detailed": "7 bullet points per slide — informative but still scannable, max 15 words each"
+    }
     bullets_instruction = detail_map.get(detail, detail_map["normal"])
     extras_instruction = []
-    if include_stats: extras_instruction.append("include relevant statistics and data where appropriate")
-    if include_examples: extras_instruction.append("include real-world examples to illustrate key points")
-    if include_conclusion: extras_instruction.append("ALWAYS add exactly one separate summary/conclusion slide at the very end. DO NOT mention 'Conclusion' on any other slide.")
+    if include_stats: extras_instruction.append("weave in 1-2 real statistics or numbers per relevant slide to add credibility")
+    if include_examples: extras_instruction.append("add a brief real-world example or case study on at least one slide")
+    if include_conclusion: extras_instruction.append("end with exactly one powerful conclusion slide — key takeaways only, no new info")
     if include_images or include_ai_images:
-        extras_instruction.append("provide 3-4 specific English keywords in 'image_keywords' (e.g. 'macOS terminal') ONLY for 1 slide if total slides <= 5, or 2 slides if total slides <= 10, or 3 slides maximum for longer presentations. Pick only the slides where an image adds the most value. NEVER add images to the first slide or the conclusion slide.")
-    extras_str = ", ".join(extras_instruction) if extras_instruction else ""
+        extras_instruction.append(
+            "For slides that benefit from a photo, add 'image_keywords' with 3 highly specific English words that a stock photo search would find great results for (e.g. 'doctor hospital patient', 'solar panels rooftop', 'stock market chart'). "
+            "ONLY add image_keywords to: 1 slide if total<=5, 2 slides if total<=10, 3 slides max for longer. "
+            "NEVER add image to first or conclusion slide. Omit image_keywords entirely for all other slides."
+        )
+    extras_str = "\n- ".join(extras_instruction) if extras_instruction else ""
 
     if output_type == "pptx":
-        system = f"""You are an expert professional presentation designer. Stick strictly to the user's intent. If the topic is software, do not talk about cars.
+        system = f"""You are a world-class presentation designer creating Gamma/Canva-quality slide decks.
 Your response MUST be valid JSON in this exact format:
 {{
-  "title": "Presentation Title",
+  "title": "Compelling Presentation Title",
   "slides": [
-    {{"title": "Slide Title", "content": ["Point one", "Point two"], "image_keywords": "keyword1 keyword2"}},
+    {{"title": "Slide Title", "content": ["Point one", "Point two"], "image_keywords": "word1 word2 word3"}},
     ...
   ]
 }}
 
-REQUIREMENTS:
+SLIDE DESIGN RULES:
+- Bullet points must be SHORT and PUNCHY — not full sentences. Think headlines, not paragraphs.
+- Each bullet should stand alone and deliver one clear idea.
+- Slide titles must be engaging and specific, not generic (avoid "Introduction", "Overview").
+- Vary slide structure: open with a hook, build with facts, close with impact.
+- {bullets_instruction}
+- NEVER exceed 7 bullets on any slide.
+- Do NOT repeat the slide title inside the content.
+
+CONTENT RULES:
 - Tone: {tone}
-- Number of slides: {slides}
-- Content depth: {bullets_instruction}
-- MAX BULLETS: Exactly 5 concise bullet points per slide. NEVER exceed 5.
-- CONCLUSION: The final slide must be a high-level summary. Focus on impact, not detail.
-{f'- Additional: {extras_str}' if extras_str else ''}
+- Slides: {slides}
+- Audience: {audience}, Level: {level}, Purpose: {purpose}
 - {lang_instruction}
-- Accurate Topic: Stick strictly to the specific subject. If topic is computers, DO NOT show cars.
-- Do NOT repeat titles in content.
+- Stay strictly on topic. Do not drift to unrelated subjects.
+{f'- {extras_str}' if extras_str else ''}
+
 Output ONLY the JSON, nothing else."""
         user = f"{create_pptx_phrase}: {prompt}{extra}"
     else:
@@ -170,19 +185,19 @@ Output ONLY the JSON, nothing else."""
 def download_image(description: str, ai: bool = False) -> str:
     print(f"--- Attempting image download for: {description[:50]}... (AI={ai}) ---")
 
-    stop_words = {'a', 'the', 'an', 'in', 'on', 'with', 'at', 'by', 'of', 'for', 'is', 'and', 'or', 'to', 'from', 'about', 'vs', 'comparison', 'history', 'impact', 'legacy'}
-    words = description.lower().replace(".", " ").replace(",", " ").replace(":", " ").replace("-", " ").split()
-    keywords = [w for w in words if w not in stop_words and len(w) > 2]
+    # Use the keywords as provided by Claude (already specific English words)
+    clean = description.strip().replace(",", " ").replace(".", " ")
+    keywords = [w for w in clean.split() if len(w) > 1]
     if not keywords:
-        keywords = ["professional", "modern"]
+        keywords = ["professional", "modern", "business"]
 
     seed = random.randint(1, 100000)
-    key_phrase = " ".join(keywords[:8])
+    key_phrase = " ".join(keywords[:6])
 
     if ai:
-        prompt = f"{key_phrase}, professional photography, realistic, highly detailed, 8k resolution"
+        prompt = f"{key_phrase}, professional photography, cinematic lighting, ultra realistic, 8k"
     else:
-        prompt = f"{key_phrase}, photorealistic stock photo, sharp, well lit, professional"
+        prompt = f"{key_phrase}, professional stock photo, sharp focus, well lit, high quality"
 
     query_safe = urllib.parse.quote(prompt)
     tag_query = urllib.parse.quote(",".join(keywords[:2]))
@@ -236,6 +251,7 @@ async def generate(
     include_images: str = Form("false"),
     include_ai_images: str = Form("false"),
     style: str = Form("classic"),
+    file_name: str = Form("raportakam"),
     file: UploadFile = File(None),
 ):
     file_text = ""
@@ -317,6 +333,7 @@ async def generate(
             "title": data.get("title", "ڕاپۆرتەکەم"),
             "download_path": f"/download/{file_id}/{output_type}",
             "r2_download": f"/r2/{filename}" if r2_key else None,
+            "file_name": file_name,
             "tokens_used": tokens_used,
         }
         yield f"data: {json.dumps({'status': 'done', 'result': result})}\n\n"
@@ -329,16 +346,18 @@ async def generate(
 
 
 @app.get("/download/{file_id}/{output_type}")
-async def download(file_id: str, output_type: str):
+async def download(file_id: str, output_type: str, name: str = "raportakam"):
     ext = "pptx" if output_type == "pptx" else "docx"
     path = os.path.join(TEMP_DIR, f"{file_id}.{ext}")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="فایل نەدۆزرایەوە")
-    return FileResponse(path, filename=f"raportakam.{ext}")
+    
+    download_name = name if name.endswith(f".{ext}") else f"{name}.{ext}"
+    return FileResponse(path, filename=download_name)
 
 
 @app.get("/r2/{filename}")
-async def download_r2(filename: str):
+async def download_r2(filename: str, name: str = None):
     try:
         ext = filename.split(".")[-1]
         local_path = os.path.join(TEMP_DIR, filename)
@@ -349,7 +368,11 @@ async def download_r2(filename: str):
             if ext == "pptx"
             else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
-        return FileResponse(local_path, filename=filename, media_type=media_type)
+        download_name = name if name else filename
+        if name and not download_name.endswith(f".{ext}"):
+            download_name = f"{name}.{ext}"
+            
+        return FileResponse(local_path, filename=download_name, media_type=media_type)
     except ClientError:
         raise HTTPException(status_code=404, detail="File not found in storage")
 
