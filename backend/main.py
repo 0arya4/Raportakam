@@ -335,6 +335,7 @@ async def generate(
             "r2_download": f"/r2/{filename}" if r2_key else None,
             "file_name": file_name,
             "tokens_used": tokens_used,
+            "slides_data": data.get("slides", []) if output_type == "pptx" else [],
         }
         yield f"data: {json.dumps({'status': 'done', 'result': result})}\n\n"
 
