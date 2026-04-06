@@ -18,7 +18,7 @@ export default function Login() {
     const { error } = await signIn(form.email, form.password)
     setLoading(false)
     if (error) setError('ئیمەیڵ یان وشەی نهێنی هەڵەیە')
-    else navigate('/create')
+    else navigate('/')
   }
 
   return (
