@@ -1,22 +1,22 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 import asyncio
 import json
 import os
-import uuid
-import random
+import re
 import tempfile
+import subprocess
+import uuid
+import shutil
+import time
 import boto3
-import requests
-import urllib.parse
-from botocore.exceptions import ClientError
+from botocore.config import Config
 from dotenv import load_dotenv
-from generate_pptx import generate_presentation as create_pptx
-from generate_word import create_word
 import anthropic
+from system_prompt import SYSTEM_PROMPT
 
-TEMP_DIR = tempfile.gettempdir()
 load_dotenv()
 
 app = FastAPI()
@@ -31,351 +31,78 @@ app.add_middleware(
 
 claude = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-from botocore.config import Config
+# ── Smart Estimation System ──────────────────────────────────────────────────
+STATS_FILE = os.path.join(os.path.dirname(__file__), "generation_stats.json")
+MAX_STATS = 200  # keep last 200 entries
 
-r2 = boto3.client(
-    "s3",
-    endpoint_url=os.getenv("R2_ENDPOINT"),
-    aws_access_key_id=os.getenv("R2_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY"),
-    config=Config(signature_version="s3v4"),
-    region_name="auto",
-)
-
-BUCKET = os.getenv("R2_BUCKET_NAME")
-
-
-def detect_language(prompt: str) -> str:
-    kurdish_keywords = [
-        'بە کوردی', 'بکە کوردی', 'کوردی بنووسە', 'بزمانی کوردی',
-        'به کوردی', 'Kurdish', 'kurdish', 'in Kurdish', 'in kurdish',
-        'کوردی بێت', 'زمانی کوردی', 'make it kurdish', 'write in kurdish'
-    ]
-    prompt_lower = prompt.lower()
-    for kw in kurdish_keywords:
-        if kw.lower() in prompt_lower:
-            return 'kurdish'
-
-    # Check for Kurdish/Arabic characters
-    # Unicode range for Arabic: 0600–06FF
-    import re
-    if re.search(r'[\u0600-\u06FF]', prompt):
-        return 'kurdish'
-
-    return 'english'
-
-
-def ask_claude(prompt: str, output_type: str, slides: int, tone: str, file_text: str = "",
-               audience: str = "general", purpose: str = "education", level: str = "intermediate",
-               detail: str = "normal", include_stats: bool = True, include_examples: bool = True,
-               include_conclusion: bool = True, include_images: bool = True, include_ai_images: bool = False) -> dict:
-    lang = detect_language(prompt)
-
-    if lang == 'kurdish':
-        lang_instruction = "زمان: کوردی (سۆرانی) — هەموو ناوەڕۆک بە کوردی بنووسە"
-        create_pptx_phrase = "پێشکەشکردنێک دروست بکە دەربارەی"
-        create_word_phrase = "ڕاپۆرتێک دروست بکە دەربارەی"
-        extra = f"\n\nناوەڕۆکی فایلی بارکراو:\n{file_text}" if file_text else ""
-    else:
-        lang_instruction = "Language: English — write ALL content in English"
-        create_pptx_phrase = "Create a presentation about"
-        create_word_phrase = "Create a report about"
-        extra = f"\n\nUploaded file content:\n{file_text}" if file_text else ""
-
-    detail_map = {
-        "brief":    "3 bullet points per slide — ultra short, 4-6 words each, punchy",
-        "normal":   "5 bullet points per slide — concise, max 10 words each, clear",
-        "detailed": "7 bullet points per slide — informative but still scannable, max 15 words each"
-    }
-    bullets_instruction = detail_map.get(detail, detail_map["normal"])
-    extras_instruction = []
-    if include_stats: extras_instruction.append("weave in 1-2 real statistics or numbers per relevant slide to add credibility")
-    if include_examples: extras_instruction.append("add a brief real-world example or case study on at least one slide")
-    if include_conclusion: extras_instruction.append("end with exactly one powerful conclusion slide — key takeaways only, no new info")
-    if include_images or include_ai_images:
-        extras_instruction.append(
-            "For slides that benefit from a photo, add 'image_keywords' with 3 highly specific English words that a stock photo search would find great results for (e.g. 'doctor hospital patient', 'solar panels rooftop', 'stock market chart'). "
-            "ONLY add image_keywords to: 1 slide if total<=5, 2 slides if total<=10, 3 slides max for longer. "
-            "NEVER add image to first or conclusion slide. Omit image_keywords entirely for all other slides."
-        )
-    extras_str = "\n- ".join(extras_instruction) if extras_instruction else ""
-
-    if output_type == "pptx":
-        system = f"""You are a world-class presentation designer creating Gamma/Canva-quality slide decks.
-Your response MUST be valid JSON in this exact format:
-{{
-  "title": "Compelling Presentation Title",
-  "slides": [
-    {{"title": "Slide Title", "content": ["Point one", "Point two"], "image_keywords": "word1 word2 word3"}},
-    ...
-  ]
-}}
-
-SLIDE DESIGN RULES:
-- Bullet points must be SHORT and PUNCHY — not full sentences. Think headlines, not paragraphs.
-- Each bullet should stand alone and deliver one clear idea.
-- Slide titles must be engaging and specific, not generic (avoid "Introduction", "Overview").
-- Vary slide structure: open with a hook, build with facts, close with impact.
-- {bullets_instruction}
-- NEVER exceed 7 bullets on any slide.
-- Do NOT repeat the slide title inside the content.
-
-CONTENT RULES:
-- Tone: {tone}
-- Slides: {slides}
-- Audience: {audience}, Level: {level}, Purpose: {purpose}
-- {lang_instruction}
-- Stay strictly on topic. Do not drift to unrelated subjects.
-{f'- {extras_str}' if extras_str else ''}
-
-Output ONLY the JSON, nothing else."""
-        user = f"{create_pptx_phrase}: {prompt}{extra}"
-    else:
-        system = f"""You are an expert professional report writer.
-Your response MUST be valid JSON in this exact format:
-{{
-  "title": "Report Title",
-  "sections": [
-    {{"heading": "Section Heading", "paragraphs": ["Detailed paragraph one...", "Detailed paragraph two..."]}},
-    ...
-  ]
-}}
-
-REQUIREMENTS:
-- Tone: {tone}
-- Target audience: {audience}
-- Content depth: {bullets_instruction}
-{f'- Additional: {extras_str}' if extras_str else ''}
-- {lang_instruction}
-Output ONLY the JSON, nothing else."""
-        user = f"{create_word_phrase}: {prompt}{extra}"
-
-    message = claude.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=8192,
-        messages=[{"role": "user", "content": user}],
-        system=system,
-    )
-
-    import json
-    text = message.content[0].text.strip()
-    if text.startswith("```"):
-        text = text.split("```")[1]
-        if text.startswith("json"):
-            text = text[4:]
-    text = text.strip()
-
-    # Fix truncated JSON by closing open brackets
+def _load_stats():
     try:
-        result = json.loads(text)
-    except json.JSONDecodeError:
-        # Count open/close braces and brackets and close them
-        open_braces = text.count('{') - text.count('}')
-        open_brackets = text.count('[') - text.count(']')
-        # Remove trailing comma if any
-        text = text.rstrip().rstrip(',')
-        text += ']' * open_brackets + '}' * open_braces
-        result = json.loads(text)
+        with open(STATS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
 
-    tokens = (message.usage.input_tokens or 0) + (message.usage.output_tokens or 0)
-    result["__tokens__"] = tokens
-    return result
-
-
-def download_image(description: str, ai: bool = False) -> str:
-    print(f"--- Attempting image download for: {description[:50]}... (AI={ai}) ---")
-
-    # Use the keywords as provided by Claude (already specific English words)
-    clean = description.strip().replace(",", " ").replace(".", " ")
-    keywords = [w for w in clean.split() if len(w) > 1]
-    if not keywords:
-        keywords = ["professional", "modern", "business"]
-
-    seed = random.randint(1, 100000)
-    key_phrase = " ".join(keywords[:6])
-
-    if ai:
-        prompt = f"{key_phrase}, professional photography, cinematic lighting, ultra realistic, 8k"
-    else:
-        prompt = f"{key_phrase}, professional stock photo, sharp focus, well lit, high quality"
-
-    query_safe = urllib.parse.quote(prompt)
-    tag_query = urllib.parse.quote(",".join(keywords[:2]))
-    urls = [
-        f"https://image.pollinations.ai/prompt/{query_safe}?width=800&height=600&nologo=true&seed={seed}&model=turbo",
-        f"https://image.pollinations.ai/prompt/{query_safe}?width=800&height=600&nologo=true&seed={seed}&model=flux",
-        f"https://loremflickr.com/800/600/{tag_query}?random={seed}",
-    ]
-
-    img_id = str(uuid.uuid4())
-    local_path = os.path.join(TEMP_DIR, f"img_{img_id}.jpg")
-
-    for url in urls:
-        try:
-            print(f"Trying: {url[:80]}...")
-            timeout = 20 if "turbo" in url else 35 if "pollinations" in url else 8
-            resp = requests.get(url, timeout=timeout, allow_redirects=True)
-            if resp.status_code == 200 and len(resp.content) > 5000:
-                with open(local_path, "wb") as f:
-                    f.write(resp.content)
-                print(f"Downloaded image OK: {local_path}")
-                return local_path
-        except Exception as e:
-            print(f"Image error: {str(e)}")
-            continue
-
-    print("All image sources failed.")
-    return None
-
-
-def upload_to_r2(local_path: str, filename: str, content_type: str) -> str:
-    with open(local_path, "rb") as f:
-        r2.put_object(Bucket=BUCKET, Key=filename, Body=f, ContentType=content_type)
-    return filename
-
-
-@app.post("/generate")
-async def generate(
-    prompt: str = Form(...),
-    output_type: str = Form(...),
-    slides: int = Form(10),
-    theme: str = Form("dark"),
-    tone: str = Form("formal"),
-    audience: str = Form("general"),
-    purpose: str = Form("education"),
-    level: str = Form("intermediate"),
-    detail: str = Form("normal"),
-    include_stats: str = Form("true"),
-    include_examples: str = Form("true"),
-    include_conclusion: str = Form("true"),
-    include_images: str = Form("false"),
-    include_ai_images: str = Form("false"),
-    style: str = Form("classic"),
-    file_name: str = Form("raportakam"),
-    file: UploadFile = File(None),
-):
-    file_text = ""
-    if file:
-        content = await file.read()
-        filename_lower = (file.filename or "").lower()
-        try:
-            if filename_lower.endswith(".pdf"):
-                import fitz
-                doc = fitz.open(stream=content, filetype="pdf")
-                file_text = "\n".join(page.get_text() for page in doc)[:5000]
-            elif filename_lower.endswith(".docx"):
-                import io
-                from docx import Document
-                doc = Document(io.BytesIO(content))
-                file_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())[:5000]
-            else:
-                file_text = content.decode("utf-8")[:5000]
-        except Exception:
-            file_text = ""
-
-    async def event_stream():
-        yield f"data: {json.dumps({'status': 'generating'})}\n\n"
-        try:
-            data = await asyncio.to_thread(
-                ask_claude,
-                prompt, output_type, slides, tone, file_text,
-                audience=audience, purpose=purpose, level=level,
-                detail=detail,
-                include_stats=include_stats.lower() == "true",
-                include_examples=include_examples.lower() == "true",
-                include_conclusion=include_conclusion.lower() == "true",
-                include_images=include_images.lower() == "true",
-                include_ai_images=include_ai_images.lower() == "true",
-            )
-        except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'detail': f'Claude error: {str(e)}'})}\n\n"
-            return
-
-        file_id = str(uuid.uuid4())
-        use_ai = include_ai_images.lower() == "true"
-
-        if output_type == "pptx":
-            main_title = data.get("title", "")
-            for slide in data.get("slides", []):
-                keywords = slide.get("image_keywords")
-                if keywords:
-                    search_query = f"{main_title} {slide.get('title', '')} {keywords}"
-                    yield f"data: {json.dumps({'status': 'ai_photo' if use_ai else 'photo', 'slide': slide.get('title', '')})}\n\n"
-                    path = await asyncio.to_thread(download_image, search_query, use_ai)
-                    if path:
-                        slide["image_path"] = path
-
-            lang = detect_language(prompt)
-            yield f"data: {json.dumps({'status': 'creating_file'})}\n\n"
-            local_path = os.path.join(TEMP_DIR, f"{file_id}.pptx")
-            await asyncio.to_thread(create_pptx, data, local_path, theme, style, lang)
-            filename = f"{file_id}.pptx"
-            content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        else:
-            yield f"data: {json.dumps({'status': 'creating_file'})}\n\n"
-            local_path = os.path.join(TEMP_DIR, f"{file_id}.docx")
-            await asyncio.to_thread(create_word, data, local_path)
-            filename = f"{file_id}.docx"
-            content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-
-        yield f"data: {json.dumps({'status': 'uploading'})}\n\n"
-        tokens_used = data.pop("__tokens__", 0)
-        r2_key = None
-        try:
-            r2_key = await asyncio.to_thread(upload_to_r2, local_path, filename, content_type)
-        except Exception:
-            pass
-
-        result = {
-            "success": True,
-            "r2_key": r2_key,
-            "filename": filename,
-            "title": data.get("title", "ڕاپۆرتەکەم"),
-            "download_path": f"/download/{file_id}/{output_type}",
-            "r2_download": f"/r2/{filename}" if r2_key else None,
-            "file_name": file_name,
-            "tokens_used": tokens_used,
-            "slides_data": data.get("slides", []) if output_type == "pptx" else [],
-        }
-        yield f"data: {json.dumps({'status': 'done', 'result': result})}\n\n"
-
-    return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-@app.get("/download/{file_id}/{output_type}")
-async def download(file_id: str, output_type: str, name: str = "raportakam"):
-    ext = "pptx" if output_type == "pptx" else "docx"
-    path = os.path.join(TEMP_DIR, f"{file_id}.{ext}")
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="فایل نەدۆزرایەوە")
-    
-    download_name = name if name.endswith(f".{ext}") else f"{name}.{ext}"
-    return FileResponse(path, filename=download_name)
-
-
-@app.get("/r2/{filename}")
-async def download_r2(filename: str, name: str = None):
+def _save_stats(stats):
     try:
-        ext = filename.split(".")[-1]
-        local_path = os.path.join(TEMP_DIR, filename)
-        # Download from R2 to temp then serve
-        r2.download_file(BUCKET, filename, local_path)
-        media_type = (
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            if ext == "pptx"
-            else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        with open(STATS_FILE, "w", encoding="utf-8") as f:
+            json.dump(stats[-MAX_STATS:], f)
+    except Exception:
+        pass
+
+def _detail_score(detail: str) -> int:
+    return {"Summary": 0, "Balanced": 1, "Detailed": 2}.get(detail, 1)
+
+def _addon_count(req) -> int:
+    return sum([
+        req.addon_table, req.addon_timeline, req.addon_chart_extra,
+        req.addon_quotes, req.addon_comparison, req.addon_cover_page,
+        req.conclusion, req.addon_references,
+    ])
+
+def smart_estimate(slide_count: int, detail_level: str, addon_count: int, is_pro: bool) -> int:
+    stats = _load_stats()
+    if len(stats) < 3:
+        # Not enough data — use formula
+        t = 30 + max(0, slide_count - 5) * 2
+        if detail_level == "Detailed": t += 12
+        if detail_level == "Summary":  t -= 5
+        t += addon_count * 3
+        return max(t, 20)
+    # KNN: find 5 nearest neighbors weighted by similarity
+    d_score = _detail_score(detail_level)
+    scored = []
+    for i, entry in enumerate(stats):
+        dist = (
+            abs(entry["slide_count"] - slide_count) * 2.5 +
+            abs(_detail_score(entry["detail_level"]) - d_score) * 4 +
+            abs(entry["addon_count"] - addon_count) * 1.5 +
+            (0 if entry.get("is_pro") == is_pro else 5)
         )
-        download_name = name if name else filename
-        if name and not download_name.endswith(f".{ext}"):
-            download_name = f"{name}.{ext}"
-            
-        return FileResponse(local_path, filename=download_name, media_type=media_type)
-    except ClientError:
-        raise HTTPException(status_code=404, detail="File not found in storage")
+        recency_weight = 1.0 + (i / len(stats)) * 0.5  # newer = slightly higher weight
+        scored.append((dist, recency_weight, entry["actual_seconds"]))
+    scored.sort(key=lambda x: x[0])
+    top = scored[:5]
+    total_w, total_wt = 0.0, 0.0
+    for dist, rw, secs in top:
+        w = rw / (dist + 1.0)
+        total_wt += w * secs
+        total_w += w
+    estimate = int(total_wt / total_w) if total_w > 0 else 40
+    return max(estimate, 15)
+
+def record_generation(slide_count: int, detail_level: str, addon_count: int, is_pro: bool, actual_seconds: float):
+    stats = _load_stats()
+    stats.append({
+        "slide_count": slide_count,
+        "detail_level": detail_level,
+        "addon_count": addon_count,
+        "is_pro": is_pro,
+        "actual_seconds": round(actual_seconds),
+        "ts": int(time.time()),
+    })
+    _save_stats(stats)
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 @app.get("/admin/users")
@@ -386,11 +113,9 @@ async def admin_users(secret: str = ""):
         from supabase import create_client
         sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
 
-        # Get all profiles
         profiles_res = sb.table("profiles").select("*").execute()
         profiles = {p["id"]: p for p in profiles_res.data}
 
-        # Get token stats per user
         gen_res = sb.table("generations").select("user_id, tokens_used").execute()
         token_map = {}
         gen_count_map = {}
@@ -405,7 +130,6 @@ async def admin_users(secret: str = ""):
         for uid, p in profiles.items():
             plan = p.get("plan", "free")
             expires_at = p.get("plan_expires_at")
-            # Auto-revert expired pro plans
             if plan == "pro" and expires_at:
                 exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
                 if exp < now:
@@ -461,6 +185,277 @@ async def add_points(secret: str = "", user_id: str = "", points: int = 0):
         return {"success": True, "points": new_points}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def sanitize_js(code: str) -> str:
+    # Curly/smart quotes → straight ASCII
+    code = code.replace('\u201c', '"').replace('\u201d', '"')
+    code = code.replace('\u2018', "'").replace('\u2019', "'")
+    # Remove # from hex color strings: "#RRGGBB" → "RRGGBB"
+    code = re.sub(r'(["\'])#([0-9a-fA-F]{3,6})\1', r'\1\2\1', code)
+    # Strip 8-char hex colors down to 6 (opacity-in-hex is invalid)
+    code = re.sub(r'(["\'])([0-9a-fA-F]{8})\1', lambda m: f'{m.group(1)}{m.group(2)[:6]}{m.group(1)}', code)
+    # Fix valig → valign
+    code = re.sub(r'\bvalig\b(?!n)', 'valign', code)
+    # Fix align: "justified" → align: "left" (not supported by pptxgenjs)
+    code = re.sub(r'align:\s*["\']justified["\']', 'align: "left"', code)
+    # Replace LINE shape type with rect to avoid missing-param errors
+    code = re.sub(r'pptxgen\.shapes\.LINE', 'pres.ShapeType.rect', code, flags=re.IGNORECASE)
+    code = re.sub(r'pres\.ShapeType\.line\b', 'pres.ShapeType.rect', code, flags=re.IGNORECASE)
+    code = re.sub(r'ShapeType\.line\b', 'pres.ShapeType.rect', code, flags=re.IGNORECASE)
+    # Fix h:0 (bare zero height) → h:0.02 so rect renders, but don't touch h:0.07 etc.
+    code = re.sub(r'\bh:\s*0(?![\.\d])', 'h:0.02', code)
+    # Replace backtick template literals with empty string fallback (rare but happens)
+    code = re.sub(r'`[^`]*`', lambda m: '"' + m.group(0)[1:-1].replace('"', '\\"').replace('${', '"+').replace('}', '+"') + '"', code)
+    # Fix addChart calls with empty data arrays to avoid PptxGenJS crash
+    code = re.sub(
+        r'(\.addChart\s*\([^,]+,\s*)\[\s*\]',
+        r'\1[{name:"Data",labels:["A","B","C","D"],values:[10,20,30,40]}]',
+        code
+    )
+    return code
+
+
+def pick_model_and_tokens(slide_count: int, is_pro: bool):
+    model = "claude-sonnet-4-6" if is_pro else "claude-haiku-4-5-20251001"
+    if slide_count <= 5:    tokens = 8000
+    elif slide_count <= 10: tokens = 10000
+    elif slide_count <= 15: tokens = 13000
+    elif slide_count <= 20: tokens = 16000
+    elif slide_count <= 25: tokens = 19000
+    else:                   tokens = 22000
+    return model, tokens
+
+
+class GenerateRequest(BaseModel):
+    topic: str
+    slide_count: int = 10
+    color_theme: str = "Auto (AI decides)"
+    language: str = "English"
+    style: str = "Academic / University"
+    detail_level: str = "Balanced"
+    student_name: str = ""
+    instructor_name: str = ""
+    date: str = "2026"
+    addon_table: bool = False
+    addon_timeline: bool = False
+    addon_chart_extra: bool = False
+    addon_quotes: bool = False
+    addon_comparison: bool = False
+    addon_cover_page: bool = False
+    addon_custom_text: str = ""
+    conclusion: bool = True
+    addon_references: bool = False
+    file_name: str = "raportakam"
+    is_pro: bool = False
+
+
+def build_prompt(req: GenerateRequest) -> str:
+    prompt = SYSTEM_PROMPT
+    replacements = {
+        "{{TOPIC}}":             req.topic,
+        "{{SLIDE_COUNT}}":       str(req.slide_count),
+        "{{COLOR_THEME}}":       req.color_theme,
+        "{{LANGUAGE}}":          req.language,
+        "{{STYLE}}":             req.style,
+        "{{DETAIL_LEVEL}}":      req.detail_level,
+        "{{STUDENT_NAME}}":      req.student_name,
+        "{{INSTRUCTOR_NAME}}":   req.instructor_name,
+        "{{DATE}}":              req.date,
+        "{{ADDON_TABLE}}":       "ON" if req.addon_table else "OFF",
+        "{{ADDON_TIMELINE}}":    "ON" if req.addon_timeline else "OFF",
+        "{{ADDON_CHART_EXTRA}}": "ON" if req.addon_chart_extra else "OFF",
+        "{{ADDON_QUOTES}}":      "ON" if req.addon_quotes else "OFF",
+        "{{ADDON_COMPARISON}}":  "ON" if req.addon_comparison else "OFF",
+        "{{ADDON_COVER_PAGE}}":  "ON" if req.addon_cover_page else "OFF",
+        "{{ADDON_CUSTOM_TEXT}}": req.addon_custom_text,
+        "{{CONCLUSION_SLIDE}}":   "on" if req.conclusion else "off",
+        "{{ADDON_CONCLUSION}}":   "ON" if req.conclusion else "OFF",
+        "{{ADDON_REFERENCES}}":   "ON" if req.addon_references else "OFF",
+    }
+    for k, v in replacements.items():
+        prompt = prompt.replace(k, v)
+    return prompt
+
+
+r2 = boto3.client(
+    "s3",
+    endpoint_url=os.getenv("R2_ENDPOINT"),
+    aws_access_key_id=os.getenv("R2_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY"),
+    config=Config(signature_version="s3v4"),
+    region_name="auto",
+)
+BUCKET = os.getenv("R2_BUCKET_NAME")
+
+
+@app.get("/estimate")
+async def estimate_time(slide_count: int = 10, detail_level: str = "Balanced", addon_count: int = 0, is_pro: bool = False):
+    secs = smart_estimate(slide_count, detail_level, addon_count, is_pro)
+    return {"seconds": secs}
+
+
+@app.post("/generate/stream")
+async def generate_stream(req: GenerateRequest):
+    prompt = build_prompt(req)
+    _gen_start = time.time()
+
+    async def event_stream():
+        yield f"data: {json.dumps({'stage': 1, 'label': 'Analyzing topic...'})}\n\n"
+        full_code = ""
+        char_count = 0
+        tokens_used = 0
+        try:
+            def run_claude():
+                nonlocal full_code, char_count, tokens_used
+                _model, _tokens = pick_model_and_tokens(req.slide_count, req.is_pro)
+                with claude.messages.stream(
+                    model=_model,
+                    max_tokens=_tokens,
+                    messages=[{"role": "user", "content": prompt}]
+                ) as stream:
+                    for text in stream.text_stream:
+                        full_code += text
+                        char_count += len(text)
+                    usage = stream.get_final_message().usage
+                    tokens_used = (usage.input_tokens or 0) + (usage.output_tokens or 0)
+            await asyncio.to_thread(run_claude)
+            print(f"[Claude] chars={char_count} tokens={tokens_used} has_writefile={'pres.writeFile' in full_code} last50={repr(full_code[-50:])}")
+        except Exception as e:
+            yield f"data: {json.dumps({'stage': -1, 'error': str(e)})}\n\n"
+            return
+
+        yield f"data: {json.dumps({'stage': 2, 'label': 'Designing layout...'})}\n\n"
+
+        def _extract_code(raw: str) -> str:
+            raw = raw.strip()
+            raw = re.sub(r"^```[a-z]*\n?", "", raw)
+            raw = re.sub(r"\n?```$", "", raw).strip()
+            js_start = raw.find('const pptxgen = require')
+            if js_start == -1:
+                js_start = raw.find('const pptxgen=require')
+            if js_start > 0:
+                raw = raw[js_start:]
+            return sanitize_js(raw.strip())
+
+        clean_code = _extract_code(full_code)
+
+        # Detect truncation: code must end with writeFile call
+        if 'pres.writeFile' not in clean_code:
+            print(f"[TRUNCATED] last100={repr(clean_code[-100:])}")
+            yield f"data: {json.dumps({'stage': -1, 'error': 'کۆدەکە ناتەواو بوو. دووبارە هەوڵ بدەرەوە.'})}\n\n"
+            return
+
+        yield f"data: {json.dumps({'stage': 3, 'label': 'Generating slides...'})}\n\n"
+
+        node_modules = os.path.join(os.path.dirname(__file__), "node_modules")
+        backend_dir = os.path.dirname(__file__).replace(chr(92), "/")
+
+        async def run_node(code_to_run: str):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                js_path = os.path.join(tmpdir, "gen.js")
+                out_path = os.path.join(tmpdir, "output.pptx")
+                out_path_js = out_path.replace('\\', '/')
+                code = re.sub(
+                    r'fileName\s*:\s*["\']output\.pptx["\']',
+                    f'fileName: "{out_path_js}"',
+                    code_to_run
+                )
+                with open(js_path, "w", encoding="utf-8") as f:
+                    f.write(f'process.chdir("{backend_dir}"); {code}')
+                js_path_copy = js_path  # avoid closure issues
+                def _run():
+                    return subprocess.run(
+                        ["node", js_path_copy],
+                        capture_output=True, text=True, timeout=90,
+                        env={**os.environ, "NODE_PATH": node_modules}
+                    )
+                res = await asyncio.to_thread(_run)
+                if res.returncode == 0:
+                    saved = os.path.join(tempfile.gettempdir(), f"pptx_{uuid.uuid4()}.pptx")
+                    shutil.copy2(out_path, saved)
+                    return res, saved
+                return res, None
+
+        async def generate_code():
+            code = ""
+            _model, _tokens = pick_model_and_tokens(req.slide_count, req.is_pro)
+            def _call():
+                nonlocal code
+                with claude.messages.stream(
+                    model=_model,
+                    max_tokens=_tokens,
+                    messages=[{"role": "user", "content": prompt}]
+                ) as stream:
+                    for text in stream.text_stream:
+                        code += text
+            await asyncio.to_thread(_call)
+            return _extract_code(code)
+
+        try:
+            result, saved_path = await run_node(clean_code)
+
+            # Auto-retry once if Node failed
+            if result.returncode != 0:
+                yield f"data: {json.dumps({'stage': 2, 'label': 'Retrying...'})}\n\n"
+                try:
+                    retry_code = await generate_code()
+                except Exception as e:
+                    yield f"data: {json.dumps({'stage': -1, 'error': str(e)})}\n\n"
+                    return
+                if 'pres.writeFile' not in retry_code:
+                    yield f"data: {json.dumps({'stage': -1, 'error': 'کۆدەکە ناتەواو بوو. دووبارە هەوڵ بدەرەوە.'})}\n\n"
+                    return
+                yield f"data: {json.dumps({'stage': 3, 'label': 'Generating slides...'})}\n\n"
+                result, saved_path = await run_node(retry_code)
+
+            if result.returncode != 0:
+                err = result.stderr or result.stdout or "Node.js error"
+                err = re.sub(r'[A-Za-z]:[^\n:]+\.js:\d+\s*', '', err).strip()
+                err = re.sub(r'\s+', ' ', err).strip()
+                err = err[:200] if err else "کێشەیەک روویدا لە دروستکردنی فایلەکە"
+                yield f"data: {json.dumps({'stage': -1, 'error': err})}\n\n"
+                return
+
+            yield f"data: {json.dumps({'stage': 4, 'label': 'Building your file...'})}\n\n"
+
+            file_id = str(uuid.uuid4())
+            r2_key = f"presentations/{file_id}.pptx"
+            r2.upload_file(
+                saved_path, BUCKET, r2_key,
+                ExtraArgs={"ContentType": "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
+            )
+            try:
+                os.remove(saved_path)
+            except Exception:
+                pass
+            actual_secs = time.time() - _gen_start
+            record_generation(req.slide_count, req.detail_level, _addon_count(req), req.is_pro, actual_secs)
+            download_url = f"/pptx/{file_id}"
+            yield f"data: {json.dumps({'stage': 5, 'label': 'Ready!', 'url': download_url, 'file_id': file_id, 'tokens_used': tokens_used})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'stage': -1, 'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/pptx/{file_id}")
+async def download_pptx(file_id: str, name: str = "raportakam"):
+    try:
+        # unique path per request to avoid conflicts
+        local_path = os.path.join(tempfile.gettempdir(), f"dl_{uuid.uuid4()}.pptx")
+        r2.download_file(BUCKET, f"presentations/{file_id}.pptx", local_path)
+        from fastapi.responses import FileResponse
+        download_name = name if name.endswith(".pptx") else f"{name}.pptx"
+        return FileResponse(local_path, filename=download_name,
+                            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                            background=None)
+    except Exception:
+        raise HTTPException(status_code=404, detail="File not found")
 
 
 @app.get("/health")
