@@ -240,7 +240,7 @@ def sanitize_js(code: str) -> str:
 
 
 def pick_model_and_tokens(slide_count: int, is_pro: bool, addon_count: int = 0):
-    model = "claude-3-5-sonnet-20241022" if is_pro else "claude-3-5-haiku-20241022"
+    model = "claude-sonnet-4-6" if is_pro else "claude-haiku-4-5"
     if slide_count <= 5:    tokens = 8000
     elif slide_count <= 10: tokens = 10000
     elif slide_count <= 15: tokens = 13000
