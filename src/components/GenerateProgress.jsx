@@ -11,15 +11,17 @@ const STAGES = [
   { id: 5, label: "ئامادەیە!",                icon: "⬇️" },
 ]
 
-function localEstimate(formData) {
-  let t = 30
+// Silent fallback formula — only used if the server /estimate call fails
+function fallbackEstimate(formData) {
   const slides = formData?.slide_count || 10
-  t += Math.max(0, slides - 5) * 2
-  if (formData?.detail_level === 'Detailed') t += 12
+  const isPro = formData?.is_pro || false
+  let t = isPro ? 45 : 25
+  t += Math.max(0, slides - 5) * (isPro ? 3.5 : 2)
+  if (formData?.detail_level === 'Detailed') t += isPro ? 18 : 10
   if (formData?.detail_level === 'Summary')  t -= 5
   const addons = ['addon_chart_extra','addon_table','addon_timeline','addon_quotes','addon_comparison','addon_cover_page','conclusion','addon_references']
-  t += addons.filter(k => formData?.[k]).length * 3
-  return Math.max(t, 20)
+  t += addons.filter(k => formData?.[k]).length * (isPro ? 5 : 3)
+  return Math.max(Math.round(t), 20)
 }
 
 function addonCount(formData) {
@@ -33,15 +35,24 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
   const [error, setError] = useState(null)
   const [running, setRunning] = useState(false)
   const [elapsed, setElapsed] = useState(0)
-  const [estimate, setEstimate] = useState(localEstimate(formData))
+  const [estimate, setEstimate] = useState(null)   // null = waiting for server
   const timerRef = useRef(null)
   const startTimeRef = useRef(null)
+  const hasStartedRef = useRef(false)
+  // Always call the latest onComplete, not the stale one from the first render
+  const onCompleteRef = useRef(onComplete)
+  useEffect(() => { onCompleteRef.current = onComplete })
 
   useEffect(() => {
     fetch(`${API_URL}/estimate?slide_count=${formData?.slide_count || 10}&detail_level=${encodeURIComponent(formData?.detail_level || 'Balanced')}&addon_count=${addonCount(formData)}&is_pro=${formData?.is_pro || false}`)
       .then(r => r.json())
       .then(d => { if (d.seconds) setEstimate(d.seconds) })
-      .catch(() => {})
+      .catch(() => { setEstimate(fallbackEstimate(formData)) })  // silent fallback on failure
+    // Guard prevents double-start in React Strict Mode (effect fires twice in dev)
+    if (!hasStartedRef.current) {
+      hasStartedRef.current = true
+      startGeneration()
+    }
   }, [])
 
   useEffect(() => {
@@ -57,6 +68,7 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
   }, [running])
 
   const getTimerLabel = () => {
+    if (estimate === null) return '---'
     if (elapsed < estimate) return `~${estimate - elapsed} چرکە`
     const extra = (elapsed - estimate) % 10
     return `~${10 - extra} چرکە`
@@ -81,6 +93,7 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ""
+      let gotResult = false
 
       while (true) {
         const { done, value } = await reader.read()
@@ -95,17 +108,40 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
             if (data.stage === -1) {
               setError(data.error || "کێشەیەک روویدا. دووبارە هەوڵ بدەوە.")
               setRunning(false)
+              gotResult = true
               return
             }
-            setCurrentStage(data.stage)
             if (data.url) {
-              setDownloadUrl(`${API_URL}${data.url}?name=${encodeURIComponent(formData.file_name || formData.topic)}`)
+              // Jump straight to stage 6 (all done) when the download URL arrives
+              const fullUrl = `${API_URL}${data.url}?name=${encodeURIComponent(formData.file_name || formData.topic)}`
               setCurrentStage(6)
+              setDownloadUrl(fullUrl)
               setRunning(false)
-              onComplete?.(data.tokens_used || 0)
+              gotResult = true
+              // Auto-download immediately so file is saved even if UI resets
+              fetch(fullUrl).then(r => r.blob()).then(blob => {
+                const blobUrl = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = blobUrl
+                a.download = `${formData.file_name || formData.topic || 'raportakam'}.pptx`
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                URL.revokeObjectURL(blobUrl)
+              }).catch(() => {})
+              // Use ref to always call the latest onComplete (avoids stale closure)
+              onCompleteRef.current?.(data.tokens_used || 0, data.url)
+            } else {
+              setCurrentStage(data.stage)
             }
           } catch (_) {}
         }
+      }
+
+      // Stream closed without a proper result — stop the spinner and show an error
+      if (!gotResult) {
+        setError("کۆدەکە بەبێ وەڵام داخرا. دووبارە هەوڵ بدەرەوە.")
+        setRunning(false)
       }
     } catch (e) {
       setError(e.message || "کێشەیەک روویدا")
@@ -115,16 +151,6 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
 
   return (
     <div className="w-full max-w-md mx-auto px-4">
-      {!running && !downloadUrl && !error && (
-        <motion.button
-          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-          onClick={startGeneration}
-          className="w-full py-4 font-bold rounded-xl text-lg text-slate-950"
-          style={{ background: 'linear-gradient(135deg,#eab308,#f97316)' }}
-        >
-          دروستکردنی پێشکەشکردن ✨
-        </motion.button>
-      )}
 
       <AnimatePresence>
         {(running || downloadUrl) && (
@@ -187,13 +213,29 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
             <AnimatePresence>
               {downloadUrl && (
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 pt-2">
-                  <a href={downloadUrl} download className="block w-full">
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                      className="w-full text-center py-4 font-bold rounded-xl text-lg text-slate-950"
-                      style={{ background: 'linear-gradient(135deg,#eab308,#f97316)' }}>
-                      ⬇️ داگرتنی پێشکەشکردن
-                    </motion.div>
-                  </a>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(downloadUrl)
+                        const blob = await res.blob()
+                        const blobUrl = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = blobUrl
+                        a.download = `${formData?.file_name || formData?.topic || 'raportakam'}.pptx`
+                        document.body.appendChild(a)
+                        a.click()
+                        document.body.removeChild(a)
+                        URL.revokeObjectURL(blobUrl)
+                      } catch {
+                        window.open(downloadUrl, '_blank')
+                      }
+                    }}
+                    className="w-full text-center py-4 font-bold rounded-xl text-lg text-slate-950"
+                    style={{ background: 'linear-gradient(135deg,#eab308,#f97316)' }}
+                  >
+                    ⬇️ داگرتنی پێشکەشکردن
+                  </motion.button>
                   <button onClick={onReset} className="w-full text-slate-500 hover:text-white text-sm transition text-center py-2">
                     + دروستکردنی نوێ
                   </button>
@@ -208,7 +250,7 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="p-4 bg-red-950 border border-red-700 rounded-xl text-red-400 text-sm text-center space-y-3">
           <p>{error}</p>
-          <button onClick={() => { setError(null); setRunning(false); setCurrentStage(0) }}
+          <button onClick={() => { hasStartedRef.current = false; startGeneration() }}
             className="px-4 py-2 bg-red-800 hover:bg-red-700 rounded-lg text-white text-sm transition">
             دووبارە هەوڵ بدەوە
           </button>

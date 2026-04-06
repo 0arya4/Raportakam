@@ -60,35 +60,58 @@ def _addon_count(req) -> int:
     ])
 
 def smart_estimate(slide_count: int, detail_level: str, addon_count: int, is_pro: bool) -> int:
+    """
+    Smart time estimator. Pro uses claude-sonnet (slower, higher quality),
+    Free uses claude-haiku (faster). Always keeps the two plans separated.
+    Falls back to a calibrated formula when not enough same-plan data exists.
+    """
     stats = _load_stats()
-    if len(stats) < 3:
-        # Not enough data — use formula
-        t = 30 + max(0, slide_count - 5) * 2
-        if detail_level == "Detailed": t += 12
+
+    # Filter to only same-plan entries for a cleaner signal
+    same_plan = [e for e in stats if e.get("is_pro") == is_pro]
+
+    def formula_estimate() -> int:
+        # Calibrated separately per plan — sonnet is roughly 1.8-2x slower than haiku
+        base = 45 if is_pro else 25
+        t = base + max(0, slide_count - 5) * (3.5 if is_pro else 2.0)
+        if detail_level == "Detailed": t += 18 if is_pro else 10
         if detail_level == "Summary":  t -= 5
-        t += addon_count * 3
-        return max(t, 20)
-    # KNN: find 5 nearest neighbors weighted by similarity
+        t += addon_count * (5 if is_pro else 3)
+        return max(int(t), 20)
+
+    # Need at least 5 same-plan points for KNN to be meaningful
+    if len(same_plan) < 5:
+        return formula_estimate()
+
+    # KNN on same-plan data only — no cross-plan contamination
     d_score = _detail_score(detail_level)
     scored = []
-    for i, entry in enumerate(stats):
+    for i, entry in enumerate(same_plan):
         dist = (
-            abs(entry["slide_count"] - slide_count) * 2.5 +
-            abs(_detail_score(entry["detail_level"]) - d_score) * 4 +
-            abs(entry["addon_count"] - addon_count) * 1.5 +
-            (0 if entry.get("is_pro") == is_pro else 5)
+            abs(entry["slide_count"] - slide_count) * 3.0 +
+            abs(_detail_score(entry["detail_level"]) - d_score) * 5.0 +
+            abs(entry["addon_count"] - addon_count) * 2.0
         )
-        recency_weight = 1.0 + (i / len(stats)) * 0.5  # newer = slightly higher weight
+        # Newer entries weighted higher (index grows toward end = newer)
+        recency_weight = 1.0 + (i / len(same_plan)) * 0.6
         scored.append((dist, recency_weight, entry["actual_seconds"]))
+
     scored.sort(key=lambda x: x[0])
-    top = scored[:5]
+    # Use top 7 neighbors for stability (more data = smoother estimate)
+    top = scored[:7]
     total_w, total_wt = 0.0, 0.0
     for dist, rw, secs in top:
         w = rw / (dist + 1.0)
         total_wt += w * secs
         total_w += w
-    estimate = int(total_wt / total_w) if total_w > 0 else 40
-    return max(estimate, 15)
+    knn_estimate = int(total_wt / total_w) if total_w > 0 else formula_estimate()
+
+    # Blend KNN with formula when data is limited (< 20 same-plan points)
+    if len(same_plan) < 20:
+        blend = len(same_plan) / 20.0          # 0.25 … 0.99
+        knn_estimate = int(knn_estimate * blend + formula_estimate() * (1 - blend))
+
+    return max(knn_estimate, 15)
 
 def record_generation(slide_count: int, detail_level: str, addon_count: int, is_pro: bool, actual_seconds: float):
     stats = _load_stats()
@@ -216,7 +239,7 @@ def sanitize_js(code: str) -> str:
     return code
 
 
-def pick_model_and_tokens(slide_count: int, is_pro: bool):
+def pick_model_and_tokens(slide_count: int, is_pro: bool, addon_count: int = 0):
     model = "claude-sonnet-4-6" if is_pro else "claude-haiku-4-5-20251001"
     if slide_count <= 5:    tokens = 8000
     elif slide_count <= 10: tokens = 10000
@@ -224,6 +247,8 @@ def pick_model_and_tokens(slide_count: int, is_pro: bool):
     elif slide_count <= 20: tokens = 16000
     elif slide_count <= 25: tokens = 19000
     else:                   tokens = 22000
+    # Each addon adds extra slides/content — bump the budget to avoid truncation
+    tokens += addon_count * 500
     return model, tokens
 
 
@@ -308,7 +333,7 @@ async def generate_stream(req: GenerateRequest):
         try:
             def run_claude():
                 nonlocal full_code, char_count, tokens_used
-                _model, _tokens = pick_model_and_tokens(req.slide_count, req.is_pro)
+                _model, _tokens = pick_model_and_tokens(req.slide_count, req.is_pro, _addon_count(req))
                 with claude.messages.stream(
                     model=_model,
                     max_tokens=_tokens,
@@ -379,7 +404,7 @@ async def generate_stream(req: GenerateRequest):
 
         async def generate_code():
             code = ""
-            _model, _tokens = pick_model_and_tokens(req.slide_count, req.is_pro)
+            _model, _tokens = pick_model_and_tokens(req.slide_count, req.is_pro, _addon_count(req))
             def _call():
                 nonlocal code
                 with claude.messages.stream(

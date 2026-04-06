@@ -137,8 +137,9 @@ export default function Create() {
     setStep(5)
   }
 
-  const handleGenerationComplete = async (tokensUsed = 0) => {
-    if (user) {
+  const handleGenerationComplete = async (tokensUsed = 0, fileUrl = '') => {
+    if (!user) return
+    try {
       await supabase.from('generations').insert({
         user_id: user.id,
         prompt: form.prompt,
@@ -146,11 +147,18 @@ export default function Create() {
         status: 'done',
         file_name: form.fileName,
         tokens_used: tokensUsed,
+        file_url: fileUrl,
       })
-      if (!isPro) {
+    } catch (e) {
+      console.error('[handleGenerationComplete] insert error:', e)
+    }
+    if (!isPro) {
+      try {
         const newPoints = userPoints - xalNeeded
         await supabase.from('profiles').update({ points: newPoints }).eq('id', user.id)
         setProfile(p => ({ ...p, points: newPoints }))
+      } catch (e) {
+        console.error('[handleGenerationComplete] points update error:', e)
       }
     }
   }

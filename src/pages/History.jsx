@@ -5,6 +5,25 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/Navbar'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+async function blobDownload(url, fileName) {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(blobUrl)
+  } catch {
+    window.open(url, '_blank')
+  }
+}
+
 export default function History() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -91,14 +110,22 @@ export default function History() {
 
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       {/* Download */}
-                      <a href={f.file_url?.startsWith('/') ? `https://raportakam.onrender.com${f.file_url}` : f.file_url} download>
-                        <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
-                          className="w-8 h-8 bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-400 rounded-lg flex items-center justify-center transition">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
-                        </motion.button>
-                      </a>
+                      <motion.button
+                        whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
+                        disabled={!f.file_url}
+                        onClick={() => {
+                          if (!f.file_url) return
+                          const fullUrl = f.file_url.startsWith('/')
+                            ? `${API_URL}${f.file_url}?name=${encodeURIComponent(f.file_name || 'raportakam')}`
+                            : f.file_url
+                          blobDownload(fullUrl, `${f.file_name || 'raportakam'}.pptx`)
+                        }}
+                        className="w-8 h-8 bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-400 rounded-lg flex items-center justify-center transition disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </motion.button>
 
                       {/* Delete */}
                       {confirmId === f.id ? (

@@ -109,6 +109,46 @@ COLOR THEME SELECTED: {{COLOR_THEME}}
   accent: F59E0B, header: 7C3AED, highlight: EC4899
   Style: energetic, creative, bold pops of color
 
+"Dark & Moody":
+  bg: 1a0a2e, card: 2d1b4e, text: E8E8F0,
+  accent: 7C3AED, header: 0d0515, highlight: A855F7
+  Style: moody, atmospheric, deep purples and near-black
+
+"Business Navy & Gold":
+  bg: 0a1628, card: 0f2044, text: F0F4FF,
+  accent: D4A017, header: 070e1c, highlight: F0C040
+  Style: elite, prestigious, navy dominance with gold accents
+
+"Sunset Gradient":
+  bg: 1a0030, card: 2d0050, text: FFF0E8,
+  accent: F97316, header: 3d0060, highlight: EF4444
+  Style: warm, passionate, deep purple to orange warmth
+
+"Ocean Deep":
+  bg: 051525, card: 0d2137, text: E0F4FF,
+  accent: 06B6D4, header: 020d18, highlight: 22D3EE
+  Style: deep, calm, blue-cyan ocean depths
+
+"Forest & Nature":
+  bg: F0FDF4, card: FFFFFF, text: 1A2E1A,
+  accent: 16A34A, header: DCFCE7, highlight: 15803D
+  Style: natural, fresh, organic greens on white
+
+"Rose Gold":
+  bg: FFF1F5, card: FFFFFF, text: 3D1A24,
+  accent: E11D48, header: FFE4EC, highlight: BE185D
+  Style: elegant, soft pinks with rose-gold accents
+
+"Cyberpunk":
+  bg: 050510, card: 0d0d2e, text: E0E0FF,
+  accent: 6366F1, header: 020208, highlight: A5B4FC
+  Style: futuristic, neon indigo, ultra-dark digital
+
+"Titanium":
+  bg: 0a0a0a, card: 1c1c1c, text: D0D0D0,
+  accent: 8B8B8B, header: 050505, highlight: AAAAAA
+  Style: industrial, metallic silver-grey, ultra minimal
+
 ═══════════════════════════════════════════════════════════════
 SECTION 4 — DESIGN RULES
 ═══════════════════════════════════════════════════════════════
@@ -120,16 +160,23 @@ LAYOUT ROTATION — never same on adjacent slides:
   Process flow circles / Two-column reference grid
 
 POLISH RULES (every slide):
-  - Thin accent bar (0.05" rectangle) top or bottom
+  - Thin accent bar: ALWAYS place at TOP (y:0, h:0.07) OR BOTTOM (y:5.555, h:0.07). NEVER in the middle.
   - Slide number in header ("01", "02"...)
   - Cards always have mkShadow() + left accent strip
   - Minimum 0.3" gap between all elements
   - Dark slides: text F5F5F7 or FFFFFF
   - Light slides: text 1C1C1E or 111111
   - NEVER put text outside slide boundaries (0-10" x 0-5.625")
+  - NEVER overlap any two text or shape elements
 
 MANDATORY SLIDE ORDER:
   Slide 1    -> Title slide (always dramatic, full bleed)
+               TITLE SLIDE STRICT LAYOUT RULES — NEVER BREAK:
+               - Accent bar at TOP (y:0, h:0.07) or BOTTOM (y:5.555, h:0.07) only
+               - Main title text box: y between 0.5 and 2.8 maximum
+               - Subtitle/tagline text box: y must be at least 0.4" BELOW the title box bottom edge
+               - Student name, instructor, date: stacked below subtitle, each 0.35" apart, never above y:3.2
+               - ZERO overlapping elements allowed on the title slide
   Slide 2    -> Abstract / Overview with stat boxes
   Slides 3-N -> Body content slides (rotate layouts)
   Second-to-last -> Conclusion if CONCLUSION_SLIDE=on
