@@ -9,6 +9,7 @@ import autoTable from 'jspdf-autotable'
 
 const ADMIN_EMAIL = 'aryagg036@gmail.com'
 const ADMIN_SECRET = 'raportakam-admin-2026'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const POINT_PACKAGES = [
   { points: 500 },
@@ -46,7 +47,7 @@ export default function Admin() {
     if (!amount || amount <= 0) return
     setAddingPoints(true)
     const delta = pointsMode === 'subtract' ? -amount : amount
-    const res = await fetch(`https://raportakam.onrender.com/admin/add-points?secret=${ADMIN_SECRET}&user_id=${pointsModal.id}&points=${delta}`, { method: 'POST' })
+    const res = await fetch(`${API_URL}/admin/add-points?secret=${ADMIN_SECRET}&user_id=${pointsModal.id}&points=${delta}`, { method: 'POST' })
     const data = await res.json()
     setUsers(prev => prev.map(x => x.id === pointsModal.id ? { ...x, points: data.points } : x))
     setPointsModal(null)
@@ -65,10 +66,10 @@ export default function Admin() {
     setConfirmingOrder(order.id)
     try {
       if (order.order_type === 'pro') {
-        await fetch(`https://raportakam.onrender.com/admin/set-plan?secret=${ADMIN_SECRET}&user_id=${order.user_id}&plan=pro`, { method: 'POST' })
+        await fetch(`${API_URL}/admin/set-plan?secret=${ADMIN_SECRET}&user_id=${order.user_id}&plan=pro`, { method: 'POST' })
       } else {
         const pts = POINT_PACKAGES[order.package_index]?.points || 0
-        await fetch(`https://raportakam.onrender.com/admin/add-points?secret=${ADMIN_SECRET}&user_id=${order.user_id}&points=${pts}`, { method: 'POST' })
+        await fetch(`${API_URL}/admin/add-points?secret=${ADMIN_SECRET}&user_id=${order.user_id}&points=${pts}`, { method: 'POST' })
       }
       await supabase.from('orders').update({ status: 'confirmed' }).eq('id', order.id)
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'confirmed' } : o))
@@ -141,7 +142,7 @@ export default function Admin() {
     setConfirm(null)
     const newPlan = u.plan === 'pro' ? 'free' : 'pro'
     setUpdating(u.id)
-    const res = await fetch(`https://raportakam.onrender.com/admin/set-plan?secret=${ADMIN_SECRET}&user_id=${u.id}&plan=${newPlan}`, { method: 'POST' })
+    const res = await fetch(`${API_URL}/admin/set-plan?secret=${ADMIN_SECRET}&user_id=${u.id}&plan=${newPlan}`, { method: 'POST' })
     const data = await res.json()
     setUsers(prev => prev.map(x => x.id === u.id ? { ...x, plan: newPlan, plan_expires_at: data.plan_expires_at } : x))
     setUpdating(null)
@@ -164,7 +165,7 @@ export default function Admin() {
       navigate('/')
       return
     }
-    fetch(`https://raportakam.onrender.com/admin/users?secret=${ADMIN_SECRET}`)
+    fetch(`${API_URL}/admin/users?secret=${ADMIN_SECRET}`)
       .then(r => r.json())
       .then(data => {
         setUsers(data.users || [])

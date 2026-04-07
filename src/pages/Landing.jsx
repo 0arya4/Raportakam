@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import Preloader from '../components/Preloader'
+import logo from '../assets/logo.png.png'
 
 export default function Landing() {
   const navigate = useNavigate()
@@ -14,6 +15,9 @@ export default function Landing() {
       <AnimatePresence>
         {!loaded && <Preloader onDone={() => setLoaded(true)} />}
       </AnimatePresence>
+
+      {/* Fixed logo watermark */}
+      <img src={logo} alt="" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] object-contain pointer-events-none select-none z-0" style={{ opacity: 0.3 }} />
 
       <Navbar />
 
@@ -38,52 +42,65 @@ export default function Landing() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={loaded ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.1 }}
               className="inline-flex items-center gap-2 bg-yellow-400/10 border border-yellow-500/30 text-yellow-400 text-xs font-semibold px-4 py-2 rounded-full mb-8">
               <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-              AI-Powered · کوردی · پیشەیی
+              AI بەکارهاتوو : Claude Sonnet · Claude Haiku
             </motion.div>
 
             <motion.h1 initial={{ opacity: 0, y: 30 }} animate={loaded ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.2 }}
               className="text-5xl sm:text-6xl xl:text-7xl font-black leading-[1.1] mb-6 tracking-tight">
               سیمینارەکەت<br />
               <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(135deg, #eab308, #f97316)' }}>
-                لە چرکەیەکدا
+                لە چەند چرکەیەکدا
               </span><br />
               ئامادەیە
             </motion.h1>
 
             <motion.p initial={{ opacity: 0, y: 20 }} animate={loaded ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.3 }}
               className="text-slate-400 text-lg leading-relaxed mb-10 max-w-md">
-              بیرۆکەکەت بنووسە، ئێمە سیمینار یان ڕاپۆرتی پیشەیی بۆ دروست دەکەین — بەخۆڕایی.
+              تەنها <span style={{ color: '#eab308', textShadow: '0 0 12px rgba(234,179,8,0.5)' }}>بیرۆکەکەت بنووسە</span>، ئێمە بۆت دەکەین بە سیمینار یان ڕاپۆرتێکی پڕۆفیشناڵ
             </motion.p>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={loaded ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.4 }}
               className="flex flex-col sm:flex-row gap-3 mb-12">
-              <motion.button whileHover={{ scale: 1.04, boxShadow: '0 0 40px rgba(234,179,8,0.5)' }} whileTap={{ scale: 0.97 }}
-                onClick={() => navigate('/services')}
-                className="flex items-center justify-center gap-2 text-slate-950 font-black px-8 py-4 rounded-2xl text-base"
-                style={{ background: 'linear-gradient(135deg, #eab308, #f97316)' }}>
-                ⚡ دەست پێبکە — بەخۆڕایی
-              </motion.button>
+
+              {/* Button 1 — دەستپێبکە animated */}
+              <div className="relative">
+                <motion.span
+                  animate={{ scale: [1, 1.18, 1], opacity: [0.4, 0, 0.4] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  className="absolute inset-0 rounded-2xl pointer-events-none border-2 border-yellow-400"
+                />
+                <motion.button
+                  whileHover={{ scale: 1.04, boxShadow: '0 0 40px rgba(234,179,8,0.5)' }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => navigate('/services')}
+                  className="relative z-10 flex items-center justify-center overflow-hidden text-slate-950 font-black px-10 py-5 rounded-2xl text-lg"
+                  style={{ background: 'linear-gradient(135deg, #eab308, #f97316)' }}>
+                  <motion.span
+                    animate={{ x: ['-200%', '250%'] }}
+                    transition={{ duration: 2.2, repeat: Infinity, repeatDelay: 1.5, ease: 'easeInOut' }}
+                    className="absolute inset-y-0 w-1/3 skew-x-[-15deg] pointer-events-none"
+                    style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)' }}
+                  />
+                  <span className="relative z-10">دەستپێبکە</span>
+                </motion.button>
+              </div>
+
+              {/* Button 2 — نرخەکان */}
               <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                 onClick={() => navigate('/pricing')}
-                className="flex items-center justify-center gap-2 border border-slate-700 hover:border-yellow-500/50 text-slate-300 font-semibold px-8 py-4 rounded-2xl text-base transition hover:bg-yellow-500/5">
-                نرخەکان ببینە
+                className="flex items-center justify-center border border-slate-700 hover:border-yellow-500/50 text-slate-300 font-semibold px-8 py-5 rounded-2xl text-lg transition hover:bg-yellow-500/5">
+                نرخەکان
               </motion.button>
+
+              {/* Button 3 — Profile */}
+              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                onClick={() => navigate('/profile')}
+                className="flex items-center justify-center border border-slate-700 hover:border-slate-600 text-slate-300 font-semibold px-8 py-5 rounded-2xl text-lg transition hover:bg-white/5">
+                پرۆفایل
+              </motion.button>
+
             </motion.div>
 
-            {/* Stats row */}
-            <motion.div initial={{ opacity: 0 }} animate={loaded ? { opacity: 1 } : {}} transition={{ delay: 0.5 }}
-              className="grid grid-cols-3 gap-4">
-              {[
-                { val: '٣٠', unit: 'چرکە', label: 'کاتی دروستکردن' },
-                { val: '٢٠+', unit: '', label: 'شێوازی دیزاین' },
-                { val: '١٠٠٪', unit: '', label: 'بە کوردی' },
-              ].map((s, i) => (
-                <div key={i} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
-                  <div className="text-2xl font-black text-white">{s.val}<span className="text-yellow-400 text-lg">{s.unit}</span></div>
-                  <div className="text-xs text-slate-500 mt-1">{s.label}</div>
-                </div>
-              ))}
-            </motion.div>
           </div>
 
           {/* Right — Mockup */}
@@ -112,7 +129,7 @@ export default function Landing() {
                     <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.4, repeat: Infinity }}
                       className="flex items-center gap-1.5 text-yellow-400 text-xs">
                       <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full" />
-                      هوشیار دەنووسێت...
+                      ئالان دەنووسێت...
                     </motion.div>
                     <div className="flex gap-2">
                       <span className="bg-yellow-400/15 text-yellow-400 text-xs px-2 py-0.5 rounded-full border border-yellow-500/20">١٠ سلاید</span>
@@ -186,8 +203,8 @@ export default function Landing() {
             <div className="space-y-14">
               {[
                 { n: '١', title: 'بیرۆکەکەت بنووسە', desc: 'بابەتەکەت و وردەکاریەکان بنووسە — زمانی کوردی بەتەواوی پشتیوانیکراوە', icon: '✍️', color: 'from-yellow-400 to-orange-400' },
-                { n: '٢', title: 'ڕێکخستنەکان هەڵبژێرە', desc: 'شێواز، ڕەنگ، ژمارەی سلاید و زیادکردنەکانی هەڵبژێرە', icon: '🎨', color: 'from-orange-400 to-red-400' },
-                { n: '٣', title: 'داگرتنی فایل', desc: 'لە چرکەیەکدا فایلی PPTX یان Word داگریت', icon: '⬇️', color: 'from-yellow-400 to-orange-400' },
+                { n: '٢', title: 'دیزاینەکان هەڵبژێرە', desc: 'شێواز، ڕەنگ، ژمارەی سلاید و زیادکردنەکانی هەڵبژێرە', icon: '🎨', color: 'from-orange-400 to-red-400' },
+                { n: '٣', title: 'داگرتنی فایل', desc: 'لە چرکەیەکدا فایلی PPTX یان Word داگرە', icon: '⬇️', color: 'from-yellow-400 to-orange-400' },
               ].map((s, i) => (
                 <motion.div key={i}
                   initial={{ opacity: 0, x: i % 2 === 0 ? 40 : -40 }}
@@ -214,70 +231,62 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── FEATURES — Bento Grid ────────────────── */}
+      {/* ── WHY US — Comparison ──────────────────── */}
       <section className="py-28 px-6">
         <div className="max-w-5xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
-            <p className="text-yellow-400 text-xs font-bold tracking-[0.2em] uppercase mb-3">تایبەتمەندییەکان</p>
-            <h2 className="text-5xl font-black mb-3">هەموو چیت پێویستە</h2>
-            <p className="text-slate-500">لەیەک شوێندا</p>
+            <h2 className="text-5xl font-black mb-3">جیاوازی ئێمە چیە؟</h2>
           </motion.div>
 
-          {/* Bento grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[160px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            {/* Big card — speed */}
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0 }}
-              className="col-span-2 row-span-2 relative bg-gradient-to-br from-yellow-500/15 to-orange-500/5 border border-yellow-500/20 rounded-3xl p-7 overflow-hidden group">
-              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-yellow-400 rounded-full blur-[80px] opacity-10 group-hover:opacity-20 transition-all duration-700" />
-              <div className="text-5xl mb-4">⚡</div>
-              <h3 className="text-yellow-400 text-2xl font-black mb-2">خێرا</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">لە کەمتر لە ٣٠ چرکە فایلەکەت ئامادەدەبێت — بە کوالیتی پیشەیی</p>
-              <div className="absolute bottom-5 left-5 flex gap-2">
-                <span className="bg-yellow-400/20 border border-yellow-500/30 text-yellow-400 text-xs px-3 py-1 rounded-full">٣٠ چرکە</span>
-                <span className="bg-slate-800 text-slate-400 text-xs px-3 py-1 rounded-full border border-slate-700">AI</span>
+            {/* Old way */}
+            <motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}
+              className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8">
+              <div className="flex items-center gap-3 mb-7">
+                <div className="w-10 h-10 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-xl">😩</div>
+                <h3 className="text-slate-400 font-black text-xl">شێوازی کۆن</h3>
+              </div>
+              <div className="space-y-4">
+                {[
+                  'کاتێکی زۆرت پێ دەچێت بۆ دیزاینکردن',
+                  'پێویستە ئەزمونێکی باشت هەبێت لە Word و Powerpoint',
+                  'دیزاینی سادە و ئاسای',
+                  'هەموو ئیشەکە خۆت ئەیکەی',
+                  'کاتی زۆرت لە نووسینەوەی ناوەڕۆک پێ دەچێت',
+                ].map((item, i) => (
+                  <motion.div key={i} initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 + i * 0.07 }}
+                    className="flex items-center gap-3 text-right">
+                    <span className="text-red-500 text-lg flex-shrink-0">✗</span>
+                    <p className="text-slate-500 text-sm flex-1">{item}</p>
+                  </motion.div>
+                ))}
               </div>
             </motion.div>
 
-            {/* Design */}
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}
-              className="col-span-1 bg-gradient-to-br from-purple-500/15 to-pink-500/5 border border-purple-500/20 rounded-3xl p-5 overflow-hidden group">
-              <div className="text-3xl mb-3">🎨</div>
-              <h3 className="text-purple-400 font-bold text-sm mb-1">دیزاینی جوان</h3>
-              <p className="text-slate-500 text-xs">تێمەی پیشەیی</p>
-            </motion.div>
+            {/* Raportakam way */}
+            <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
+              className="relative bg-gradient-to-br from-yellow-500/10 to-orange-500/5 border border-yellow-500/25 rounded-3xl p-8 overflow-hidden">
+              <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-yellow-400 rounded-full blur-[100px] opacity-10 pointer-events-none" />
+              <div className="flex items-center gap-3 mb-7">
+                <img src={logo} alt="ڕاپۆرتەکەم" className="w-10 h-10 object-contain" />
+                <h3 className="text-yellow-400 font-black text-xl">ڕاپۆرتەکەم</h3>
+              </div>
+              <div className="space-y-4">
+                {[
+                  'لە 30 چرکە بۆ خولەکێک ئامادەدەبێت',
+                  'هیچ ئەزموونێکت پێویست نییە',
+                  'دیزاینی پڕۆفیشناڵ',
 
-            {/* Kurdish */}
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }}
-              className="col-span-1 bg-gradient-to-br from-green-500/15 to-emerald-500/5 border border-green-500/20 rounded-3xl p-5 overflow-hidden">
-              <div className="text-3xl mb-3">🌐</div>
-              <h3 className="text-green-400 font-bold text-sm mb-1">زمانی کوردی</h3>
-              <p className="text-slate-500 text-xs">١٠٠٪ کوردی</p>
-            </motion.div>
-
-            {/* File upload */}
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
-              className="col-span-1 bg-gradient-to-br from-blue-500/15 to-cyan-500/5 border border-blue-500/20 rounded-3xl p-5">
-              <div className="text-3xl mb-3">📂</div>
-              <h3 className="text-blue-400 font-bold text-sm mb-1">بارکردنی فایل</h3>
-              <p className="text-slate-500 text-xs">PDF, CSV, Word</p>
-            </motion.div>
-
-            {/* PPTX + Word — wide */}
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.25 }}
-              className="col-span-2 lg:col-span-1 bg-gradient-to-br from-red-500/15 to-rose-500/5 border border-red-500/20 rounded-3xl p-5">
-              <div className="text-3xl mb-3">📊</div>
-              <h3 className="text-red-400 font-bold text-sm mb-1">PPTX و Word</h3>
-              <p className="text-slate-500 text-xs">هەر دوو جۆر</p>
-            </motion.div>
-
-            {/* Secure — wide */}
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}
-              className="col-span-2 bg-gradient-to-br from-slate-500/10 to-zinc-500/5 border border-slate-700 rounded-3xl p-5 flex items-center gap-5">
-              <div className="text-4xl">🔒</div>
-              <div>
-                <h3 className="text-slate-300 font-bold mb-1">پارێزراو</h3>
-                <p className="text-slate-500 text-sm">داتاکەت تایبەتەو پارێزراوە — هیچ کەسی تر دەستییەتی نییە</p>
+                  'AI هەموو ئیشەکەت بۆ ئەکات',
+                  'ناوەڕۆک خۆمان دروستی ئەکەین',
+                ].map((item, i) => (
+                  <motion.div key={i} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.25 + i * 0.07 }}
+                    className="flex items-center gap-3 text-right">
+                    <span className="text-yellow-400 text-lg flex-shrink-0">✓</span>
+                    <p className="text-white text-sm flex-1 font-medium">{item}</p>
+                  </motion.div>
+                ))}
               </div>
             </motion.div>
 
@@ -303,22 +312,52 @@ export default function Landing() {
             <div className="relative text-center px-8 py-20">
               <motion.p animate={{ rotate: [0, 8, -8, 0] }} transition={{ duration: 3, repeat: Infinity }}
                 className="text-6xl mb-6">🚀</motion.p>
-              <h2 className="text-5xl sm:text-6xl font-black mb-4">ئامادەیت؟</h2>
-              <p className="text-slate-400 text-lg mb-10 max-w-md mx-auto">
-                یەکەم سیمینارەکەت بۆ بەخۆڕایی دروست بکە — تۆمارکردن پێویست نییە
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <motion.button whileHover={{ scale: 1.06, boxShadow: '0 0 50px rgba(234,179,8,0.5)' }} whileTap={{ scale: 0.97 }}
-                  onClick={() => navigate('/services')}
-                  className="text-slate-950 font-black px-12 py-4 rounded-2xl text-lg"
-                  style={{ background: 'linear-gradient(135deg, #eab308, #f97316)' }}>
-                  ⚡ ئێستا دەست پێبکە
-                </motion.button>
-                <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
-                  onClick={() => navigate('/pricing')}
-                  className="border border-slate-600 hover:border-yellow-500/50 text-slate-300 font-semibold px-10 py-4 rounded-2xl text-lg transition hover:bg-white/5">
-                  نرخەکان ببینە
-                </motion.button>
+              <h2 className="text-5xl sm:text-6xl font-black mb-10">ئامادەیت؟</h2>
+
+              {/* Unique animated CTA button */}
+              <div className="flex justify-center">
+                <div className="relative">
+                  {/* Floating particles */}
+                  {[
+                    { x: -60, y: -28, delay: 0, size: 'w-1.5 h-1.5' },
+                    { x: 65, y: -18, delay: 0.5, size: 'w-1 h-1' },
+                    { x: -35, y: 32, delay: 1, size: 'w-1 h-1' },
+                    { x: 60, y: 28, delay: 1.5, size: 'w-1.5 h-1.5' },
+                    { x: 5, y: -42, delay: 0.8, size: 'w-1 h-1' },
+                  ].map((p, i) => (
+                    <motion.span key={i}
+                      animate={{ y: [p.y, p.y - 10, p.y], opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 2 + i * 0.3, repeat: Infinity, delay: p.delay, ease: 'easeInOut' }}
+                      className={`absolute ${p.size} rounded-full bg-yellow-400 blur-[1px] pointer-events-none`}
+                      style={{ left: `calc(50% + ${p.x}px)`, top: `calc(50% + ${p.y}px)` }}
+                    />
+                  ))}
+
+                  {/* Pulsing outer ring */}
+                  <motion.span
+                    animate={{ scale: [1, 1.18, 1], opacity: [0.4, 0, 0.4] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="absolute inset-0 rounded-2xl pointer-events-none border-2 border-yellow-400"
+                  />
+
+                  <motion.button
+                    onClick={() => navigate('/services')}
+                    whileHover={{ scale: 1.04, boxShadow: '0 0 50px rgba(234,179,8,0.5)' }}
+                    whileTap={{ scale: 0.96 }}
+                    className="relative z-10 px-20 py-6 text-2xl font-black rounded-2xl overflow-hidden border-2 border-yellow-500/60"
+                    style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.12), rgba(249,115,22,0.08))' }}>
+                    <motion.span
+                      animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                      className="absolute inset-0 opacity-15 pointer-events-none"
+                      style={{ background: 'linear-gradient(270deg, #eab308, #f97316, #eab308)', backgroundSize: '200% 200%' }}
+                    />
+                    <span className="relative z-10 text-transparent bg-clip-text"
+                      style={{ backgroundImage: 'linear-gradient(135deg, #eab308, #f97316)' }}>
+                      بینینی خزمەتگوزاریەکان
+                    </span>
+                  </motion.button>
+                </div>
               </div>
             </div>
           </motion.div>

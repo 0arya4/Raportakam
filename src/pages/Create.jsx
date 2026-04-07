@@ -250,16 +250,6 @@ export default function Create() {
                     placeholder="بابەتەکەت بە وردی ڕوون بکەرەوە ، تا زیاتر بنووسیت باشتر دەبێت" dir="rtl"
                     className="flex-1 w-full bg-transparent resize-none outline-none text-white placeholder-slate-500 text-base leading-relaxed min-h-[120px] sm:min-h-[200px]" />
                   <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-2 text-slate-400 hover:text-yellow-400 cursor-pointer transition text-sm">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                        </svg>
-                        {form.uploadedFile ? form.uploadedFile.name : 'فایلێک ئەپلۆد بکە'}
-                        <input type="file" className="hidden" accept=".pdf,.csv,.txt,.docx" onChange={e => set('uploadedFile', e.target.files[0])} />
-                      </label>
-                      <InfoButton text="فایلێک ئەپلۆد بکە (PDF, Word, CSV, TXT) تا زیرەکی دەستکردی ناوەڕۆکەکەی بخوێنێتەوە و بەکاری بهێنێت لە دروستکردنی فایلەکەدا." />
-                    </div>
                     <span className="text-sm text-slate-600">{form.prompt.length} پیت</span>
                   </div>
                 </div>
