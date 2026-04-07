@@ -38,7 +38,7 @@ export default function Landing() {
         <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
           {/* Left */}
-          <div className="order-2 lg:order-1 text-right">
+          <div className="order-1 lg:order-1 text-right">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={loaded ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.1 }}
               className="inline-flex items-center gap-2 bg-yellow-400/10 border border-yellow-500/30 text-yellow-400 text-xs font-semibold px-4 py-2 rounded-full mb-8">
               <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
@@ -105,7 +105,7 @@ export default function Landing() {
 
           {/* Right — Mockup */}
           <motion.div initial={{ opacity: 0, x: -30 }} animate={loaded ? { opacity: 1, x: 0 } : {}} transition={{ delay: 0.35, duration: 0.7 }}
-            className="order-1 lg:order-2 relative">
+            className="order-2 lg:order-2 relative">
             <div className="absolute -inset-6 rounded-3xl opacity-20 blur-3xl" style={{ background: 'linear-gradient(135deg, #eab308, #f97316)' }} />
 
             <div className="relative bg-slate-900 rounded-3xl border border-slate-700 overflow-hidden shadow-2xl">
