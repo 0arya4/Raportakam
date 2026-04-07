@@ -142,7 +142,7 @@ export default function Landing() {
                 <div className="space-y-2">
                   {[
                     { label: 'شیکردنەوەی بابەت', done: true },
-                    { label: 'دیزاینکردنی شێوازەکان', done: true },
+                    { label: 'دیزاینکردنی سلایدەکان', done: true },
                     { label: 'دروستکردنی سلایدەکان', active: true },
                     { label: 'بینای فایلەکە', pending: true },
                   ].map((s, i) => (
