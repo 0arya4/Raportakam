@@ -17,7 +17,7 @@ export default function Landing() {
       </AnimatePresence>
 
       {/* Fixed logo watermark */}
-      <img src={logo} alt="" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] object-contain pointer-events-none select-none z-0" style={{ opacity: 0.3 }} />
+      <img src={logo} alt="" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] object-contain pointer-events-none select-none z-0" style={{ opacity: 0.2 }} />
 
       <Navbar />
 
@@ -63,7 +63,7 @@ export default function Landing() {
               className="flex flex-col sm:flex-row gap-3 mb-12">
 
               {/* Button 1 — دەستپێبکە animated */}
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <motion.span
                   animate={{ scale: [1, 1.18, 1], opacity: [0.4, 0, 0.4] }}
                   transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
@@ -73,7 +73,7 @@ export default function Landing() {
                   whileHover={{ scale: 1.04, boxShadow: '0 0 40px rgba(234,179,8,0.5)' }}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => navigate('/services')}
-                  className="relative z-10 flex items-center justify-center overflow-hidden text-slate-950 font-black px-10 py-5 rounded-2xl text-lg"
+                  className="relative z-10 w-full flex items-center justify-center overflow-hidden text-slate-950 font-black px-10 py-5 rounded-2xl text-lg"
                   style={{ background: 'linear-gradient(135deg, #eab308, #f97316)' }}>
                   <motion.span
                     animate={{ x: ['-200%', '250%'] }}
@@ -88,14 +88,14 @@ export default function Landing() {
               {/* Button 2 — نرخەکان */}
               <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                 onClick={() => navigate('/pricing')}
-                className="flex items-center justify-center border border-slate-700 hover:border-yellow-500/50 text-slate-300 font-semibold px-8 py-5 rounded-2xl text-lg transition hover:bg-yellow-500/5">
+                className="w-full sm:w-auto flex items-center justify-center border border-slate-700 hover:border-yellow-500/50 text-slate-300 font-semibold px-8 py-5 rounded-2xl text-lg transition hover:bg-yellow-500/5">
                 نرخەکان
               </motion.button>
 
               {/* Button 3 — Profile */}
               <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                 onClick={() => navigate('/profile')}
-                className="flex items-center justify-center border border-slate-700 hover:border-slate-600 text-slate-300 font-semibold px-8 py-5 rounded-2xl text-lg transition hover:bg-white/5">
+                className="w-full sm:w-auto flex items-center justify-center border border-slate-700 hover:border-slate-600 text-slate-300 font-semibold px-8 py-5 rounded-2xl text-lg transition hover:bg-white/5">
                 پرۆفایل
               </motion.button>
 
@@ -142,9 +142,9 @@ export default function Landing() {
                 <div className="space-y-2">
                   {[
                     { label: 'شیکردنەوەی بابەت', done: true },
-                    { label: 'دیزاینکردنی سلایدەکان', done: true },
+                    { label: 'دیزاینکردنی سڵایدەکان', done: true },
                     { label: 'دروستکردنی سلایدەکان', active: true },
-                    { label: 'بینای فایلەکە', pending: true },
+                    { label: 'ئەپلۆدکردنی فایلەکە', pending: true },
                   ].map((s, i) => (
                     <div key={i} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs border transition-all ${s.done ? 'bg-green-950/40 border-green-800/40' : s.active ? 'bg-slate-800 border-yellow-500/50' : 'bg-slate-800/30 border-slate-700/30 opacity-40'}`}>
                       <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${s.done ? 'bg-green-500' : s.active ? '' : 'bg-slate-700'}`}>

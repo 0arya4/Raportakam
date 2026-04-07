@@ -137,9 +137,11 @@ export default function Login() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="text-center text-slate-600 text-xs mt-4"
+          className="text-center mt-4"
         >
-          بەخۆڕایی دەست پێبکە · کارتی کرێدیت پێویست نییە
+          <button onClick={() => navigate(-1)} className="flex items-center gap-1 border border-slate-700 hover:border-slate-600 text-slate-400 hover:text-slate-200 text-sm font-medium px-5 py-2 rounded-xl transition mx-auto hover:bg-white/5">
+            ← گەڕانەوە
+          </button>
         </motion.p>
       </motion.div>
     </div>

@@ -52,7 +52,7 @@ const pageVariants = {
   exit: { opacity: 0, x: -30 },
 }
 
-const STEPS = ['بابەت', 'ئامانج', 'شێواز', 'وردەکاری', 'دروستکردن']
+const STEPS = ['بابەت', 'شێواز', 'دیزاین', 'وردەکاری', 'دروستکردن']
 
 
 export default function Create() {
@@ -71,7 +71,7 @@ export default function Create() {
     prompt: '', fileName: '', type: searchParams.get('type') === 'word' ? 'word' : 'pptx',
     presStyle: 'Academic / University',
     colorTheme: 'Auto (AI decides)', slides: 10,
-    detail: 'Balanced', studentNames: [''], instructorName: '',
+    detail: 'Balanced', studentNames: [''], instructorName: '', universityName: '',
     date: new Date().toLocaleDateString('en-GB'),
     addonTable: false, addonTimeline: false, addonChartExtra: false,
     addonQuotes: false, addonComparison: false, addonCoverPage: false,
@@ -117,6 +117,7 @@ export default function Create() {
     detail_level: form.detail,
     student_name: form.studentNames.filter(n => n.trim()).join(', '),
     instructor_name: form.instructorName || '',
+    university_name: form.universityName || '',
     date: form.date || new Date().toLocaleDateString('en-GB'),
     addon_table: form.addonTable,
     addon_timeline: form.addonTimeline,
@@ -170,7 +171,7 @@ export default function Create() {
       prompt: '', fileName: '', type: 'pptx',
       presStyle: 'Academic / University',
       colorTheme: 'Auto (AI decides)', slides: 10,
-      detail: 'Balanced', studentNames: [''], instructorName: '',
+      detail: 'Balanced', studentNames: [''], instructorName: '', universityName: '',
       date: new Date().toLocaleDateString('en-GB'),
       addonTable: false, addonTimeline: false, addonChartExtra: false,
       addonQuotes: false, addonComparison: false, addonCoverPage: false,
@@ -298,31 +299,7 @@ export default function Create() {
               <h1 className="text-3xl sm:text-6xl font-black mb-2">ڕەنگ و دیزاین</h1>
               <p className="text-slate-500 text-lg mb-8">تێمای ڕەنگ و ژمارەی سلاید دیاری بکە</p>
 
-              <div className="mb-8">
-                <p className="text-sm font-semibold text-white mb-3">تێمای ڕەنگ</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {COLOR_THEMES.map(t => (
-                    <motion.button key={t.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                      onClick={() => set('colorTheme', t.id)}
-                      className={`relative rounded-xl overflow-hidden border-2 transition ${form.colorTheme === t.id ? 'border-yellow-400' : 'border-slate-700'}`}>
-                      <div className={`h-14 bg-gradient-to-br ${t.preview}`} />
-                      <div className="bg-slate-900 py-2 px-2 flex items-center gap-2">
-                        <span>{t.icon}</span>
-                        <span className="text-xs font-semibold text-white">{t.label}</span>
-                      </div>
-                      {form.colorTheme === t.id && (
-                        <div className="absolute top-1.5 left-1.5 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
-                          <svg className="w-2.5 h-2.5 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      )}
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between bg-slate-900/40 border border-slate-800 p-4 rounded-2xl">
+              <div className="flex items-center justify-between bg-slate-900/40 border border-slate-800 p-4 rounded-2xl mb-6">
                 <p className="text-sm font-semibold text-white">ژمارەی سلاید</p>
                 <select
                   value={form.slides}
@@ -340,6 +317,35 @@ export default function Create() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="mb-8">
+                <p className="text-sm font-semibold text-white mb-3">تێمای ڕەنگ</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {COLOR_THEMES.map(t => (
+                    <motion.button key={t.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                      onClick={() => set('colorTheme', t.id)}
+                      className={`relative rounded-xl overflow-hidden border-2 transition ${form.colorTheme === t.id ? 'border-yellow-400' : 'border-slate-700'}`}>
+                      <div className={`h-16 bg-gradient-to-br ${t.preview} relative flex items-end`}>
+                        {t.id === 'Auto (AI decides)' && (
+                          <span className="absolute bottom-1.5 right-2 text-xs font-bold text-white/90 bg-black/30 px-2 py-0.5 rounded-full backdrop-blur-sm">✨ ئۆتۆماتیک</span>
+                        )}
+                      </div>
+                      {form.colorTheme === t.id && (
+                        <div className="absolute top-1.5 left-1.5 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
+                          <svg className="w-2.5 h-2.5 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 mt-4 px-4 py-3 rounded-xl bg-slate-900/40 border border-slate-800 text-slate-500 text-xs">
+                <span className="text-base">⏱️</span>
+                <span>دیزاینی زیاتر زیاد دەکرێت بەپێی کات</span>
               </div>
             </motion.div>
           )}
@@ -400,6 +406,12 @@ export default function Create() {
                   <p className="text-xs font-semibold text-slate-400 mb-1.5">ناوی مامۆستا (ئەگەر هەبوو)</p>
                   <input value={form.instructorName} onChange={e => set('instructorName', e.target.value)}
                     placeholder="ناوی مامۆستا..." dir="rtl"
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-yellow-500/60 outline-none text-white placeholder-slate-600 px-4 py-2.5 rounded-xl text-sm transition" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 mb-1.5">ناوی زانکۆ (ئەگەر هەبوو)</p>
+                  <input value={form.universityName} onChange={e => set('universityName', e.target.value)}
+                    placeholder="ناوی زانکۆ..." dir="rtl"
                     className="w-full bg-slate-900 border border-slate-700 focus:border-yellow-500/60 outline-none text-white placeholder-slate-600 px-4 py-2.5 rounded-xl text-sm transition" />
                 </div>
                 <div className="sm:col-span-2">

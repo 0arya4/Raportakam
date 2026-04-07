@@ -261,6 +261,7 @@ class GenerateRequest(BaseModel):
     detail_level: str = "Balanced"
     student_name: str = ""
     instructor_name: str = ""
+    university_name: str = ""
     date: str = "2026"
     addon_table: bool = False
     addon_timeline: bool = False
@@ -286,6 +287,7 @@ def build_prompt(req: GenerateRequest) -> str:
         "{{DETAIL_LEVEL}}":      req.detail_level,
         "{{STUDENT_NAME}}":      req.student_name,
         "{{INSTRUCTOR_NAME}}":   req.instructor_name,
+        "{{UNIVERSITY_NAME}}":   req.university_name,
         "{{DATE}}":              req.date,
         "{{ADDON_TABLE}}":       "ON" if req.addon_table else "OFF",
         "{{ADDON_TIMELINE}}":    "ON" if req.addon_timeline else "OFF",

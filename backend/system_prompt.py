@@ -207,13 +207,17 @@ INSTRUCTOR NAME: {{INSTRUCTOR_NAME}}
   If not empty -> include on title slide as "Supervised by:"
   If empty -> omit completely, no placeholder text
 
+UNIVERSITY NAME: {{UNIVERSITY_NAME}}
+  If not empty -> include on title slide (e.g. below student name)
+  If empty -> omit completely, no placeholder text
+
 DATE: {{DATE}}
   Always include on title slide.
 
 CONCLUSION SLIDE: {{CONCLUSION_SLIDE}}
-  "on"  -> Add a conclusion slide as the second-to-last slide
-            Use elegant typographic layout
-            Summarize 3-4 key takeaways in styled cards
+  "on"  -> MANDATORY — ALWAYS include a conclusion slide as the second-to-last slide, regardless of slide count.
+            This slide is REQUIRED when on. Never skip it even if slide count is tight.
+            Use elegant typographic layout. Summarize 3-4 key takeaways in styled cards.
   "off" -> Do NOT include a conclusion slide
 
 ═══════════════════════════════════════════════════════════════
@@ -253,7 +257,9 @@ SECTION 6 — ADD-ONS (ONLY include what is ON)
 
 {{ADDON_REFERENCES}}
   OFF -> No references slide
-  ON  -> Last slide: APA format, two-column card grid, dark background,
+  ON  -> MANDATORY — ALWAYS include as the very last slide, regardless of slide count.
+         This slide is REQUIRED when ON. Never skip it even if slide count is tight.
+         APA format, two-column card grid, dark background,
          teal or silver accent, 4-6 realistic academic sources for {{TOPIC}}
 
 {{ADDON_COVER_PAGE}}
