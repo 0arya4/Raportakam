@@ -201,7 +201,7 @@ LAYOUT ROTATION — never same on adjacent slides:
 
 POLISH RULES (every slide):
   - Thin accent bar: ALWAYS place at TOP (y:0, h:0.07) OR BOTTOM (y:5.555, h:0.07). NEVER in the middle.
-  - Slide number in header ("01", "02"...)
+  - Slide number in header ("01", "02"...): place at x:9.3 y:0.08 w:0.6 h:0.35, fontSize:11, bold:false — NEVER larger than fontSize:12
   - Cards always have mkShadow() + left accent strip
   - Minimum 0.3" gap between all elements
   - Dark slides: text F5F5F7 or FFFFFF
@@ -209,14 +209,31 @@ POLISH RULES (every slide):
   - NEVER put text outside slide boundaries (0-10" x 0-5.625")
   - NEVER overlap any two text or shape elements
 
+STAT BOX FONT SIZING — CRITICAL:
+  - Stat value (number/symbol): scale fontSize by character count:
+      1–2 chars  → fontSize 48
+      3–4 chars  → fontSize 40
+      5–6 chars  → fontSize 32
+      7+ chars   → fontSize 24
+  - NEVER exceed fontSize 48 for stat values. NEVER exceed fontSize 12 for slide numbers.
+  - Stat label (word below value): fontSize 14–18. Choose based on word length:
+      1–5 chars  → fontSize 18
+      6–8 chars  → fontSize 16
+      9–12 chars → fontSize 14
+      13+ chars  → fontSize 12
+  - Each stat box: w:3.0 min, h:1.8 min. Text must fit inside — reduce fontSize if it doesn't.
+  - shrinkText:true on ALL text boxes inside stat cards to prevent overflow.
+
 MANDATORY SLIDE ORDER:
   Slide 1    -> Title slide (always dramatic, full bleed)
                TITLE SLIDE STRICT LAYOUT RULES — NEVER BREAK:
                - Accent bar at TOP (y:0, h:0.07) or BOTTOM (y:5.555, h:0.07) only
-               - Main title text box: y between 0.5 and 2.8 maximum
+               - Main title text box: y between 0.5 and 2.5 maximum, h:1.5 max
                - Subtitle/tagline text box: y must be at least 0.4" BELOW the title box bottom edge
                - Student name, instructor, date: stacked below subtitle, each 0.35" apart, never above y:3.2
-               - ZERO overlapping elements allowed on the title slide
+               - ZERO overlapping elements on the title slide — every element must have a unique y range
+               - NO stat boxes, NO grid cards, NO comparison tables on the title slide
+               - Title slide contains ONLY: background, accent bar, title text, subtitle text, optional name/date
   Slide 2    -> Abstract / Overview with stat boxes
   Slides 3-N -> Body content slides (rotate layouts)
   Second-to-last -> Conclusion if CONCLUSION_SLIDE=on

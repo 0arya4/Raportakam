@@ -9,7 +9,7 @@ import autoTable from 'jspdf-autotable'
 
 const ADMIN_EMAIL = 'aryagg036@gmail.com'
 const ADMIN_SECRET = 'raportakam-admin-2026'
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const POINT_PACKAGES = [
   { points: 500 },

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const STAGES = [
   { id: 1, label: "شیکردنەوەی بابەت...",    icon: "🔍" },
@@ -120,16 +120,15 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
               setRunning(false)
               gotResult = true
               // Auto-download immediately so file is saved even if UI resets
-              fetch(fullUrl).then(r => r.blob()).then(blob => {
-                const blobUrl = URL.createObjectURL(blob)
+              try {
                 const a = document.createElement('a')
-                a.href = blobUrl
+                a.href = fullUrl
                 a.download = `${formData.file_name || formData.topic || 'raportakam'}.pptx`
+                a.style.display = 'none'
                 document.body.appendChild(a)
                 a.click()
-                document.body.removeChild(a)
-                URL.revokeObjectURL(blobUrl)
-              }).catch(() => {})
+                setTimeout(() => document.body.removeChild(a), 200)
+              } catch (_) {}
               // Use ref to always call the latest onComplete (avoids stale closure)
               onCompleteRef.current?.(data.tokens_used || 0, data.url)
             } else {
