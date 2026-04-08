@@ -245,48 +245,61 @@ async def add_points(secret: str = "", user_id: str = "", points: int = 0):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def inject_images(code: str, slide_count: int) -> str:
+def inject_images(code: str, slide_count: int):
     """
     Find // IMG: keyword markers in generated JS, fetch images from Unsplash,
-    and replace each marker with a slide.addImage() call.
-    Limited to 30% of slides. Silently skips on failure.
+    download each to a temp file, and replace markers with slide.addImage() calls.
+    Returns (modified_code, list_of_temp_files_to_cleanup).
     """
+    temp_files = []
+
     if not UNSPLASH_ENABLED or not UNSPLASH_ACCESS_KEY:
-        print(f"[inject_images] disabled or no key — removing markers")
-        return re.sub(r'//\s*IMG:\s*[^\n]+\n?', '', code)
+        return re.sub(r'//\s*IMG:\s*[^\n]+\n?', '', code), temp_files
 
     markers = list(re.finditer(r'//\s*IMG:\s*([^\n]+)', code))
     max_images = max(1, int(slide_count * 0.3))
-    print(f"[inject_images] found {len(markers)} markers, max_images={max_images}, enabled={UNSPLASH_ENABLED}, has_key={bool(UNSPLASH_ACCESS_KEY)}")
+    print(f"[inject_images] found {len(markers)} markers, max={max_images}")
     markers = markers[:max_images]
 
-    for m in reversed(markers):  # reversed so positions stay valid
+    for m in reversed(markers):
         raw = m.group(1).strip()
-        # Parse optional coordinates: // IMG: keyword | x:5.2 y:0.5 w:4.5 h:4.6
         coord_match = re.search(r'\|\s*x:([\d.]+)\s+y:([\d.]+)\s+w:([\d.]+)\s+h:([\d.]+)', raw)
         keyword = re.sub(r'\|.*', '', raw).strip()
-        if coord_match:
-            x, y, w, h = coord_match.groups()
-        else:
-            x, y, w, h = "5.2", "0.5", "4.5", "4.6"  # fallback
+        x, y, w, h = coord_match.groups() if coord_match else ("5.2", "0.5", "4.5", "4.6")
+
         img = fetch_unsplash_image(keyword)
-        if not img:
-            replacement = ''
-        else:
-            url = img['url']
-            attr = img['attribution'].replace("'", "\\'")
-            attr_x = x
-            attr_y = str(round(float(y) + float(h) + 0.02, 2))
-            attr_y = str(min(float(attr_y), 5.35))
-            replacement = (
-                f"slide.addImage({{path:\"{url}\",x:{x},y:{y},w:{w},h:{h}}});\n"
-                f"slide.addText(\"{attr}\",{{x:{attr_x},y:{attr_y},w:{w},h:0.2,fontSize:6,color:\"AAAAAA\",align:\"right\"}});\n"
-            )
+        replacement = ''
+        if img:
+            try:
+                r = http_requests.get(img['url'], timeout=8)
+                r.raise_for_status()
+                ext = '.png' if 'png' in r.headers.get('content-type', '') else '.jpg'
+                fd, tmp_path = tempfile.mkstemp(suffix=ext)
+                with os.fdopen(fd, 'wb') as f:
+                    f.write(r.content)
+                temp_files.append(tmp_path)
+                tmp_path_js = tmp_path.replace('\\', '/')
+                attr = img['attribution'].replace("'", "\\'")
+                attr_y = str(min(round(float(y) + float(h) + 0.02, 2), 5.35))
+                replacement = (
+                    f"slide.addImage({{path:\"{tmp_path_js}\",x:{x},y:{y},w:{w},h:{h}}});\n"
+                    f"slide.addText(\"{attr}\",{{x:{x},y:{attr_y},w:{w},h:0.2,fontSize:6,color:\"AAAAAA\",align:\"right\"}});\n"
+                )
+            except Exception as e:
+                print(f"[inject_images] download failed for '{keyword}': {e}")
+
         code = code[:m.start()] + replacement + code[m.end():]
 
-    # Remove any remaining markers that exceeded the limit
     code = re.sub(r'//\s*IMG:\s*[^\n]+\n?', '', code)
-    return code
+    return code, temp_files
+
+
+def cleanup_temp_images(temp_files: list):
+    for f in temp_files:
+        try:
+            os.remove(f)
+        except Exception:
+            pass
 
 
 def fix_text_overflow(path):
@@ -464,7 +477,7 @@ async def generate_stream(req: GenerateRequest):
             return sanitize_js(raw.strip())
 
         clean_code = _extract_code(full_code)
-        clean_code = inject_images(clean_code, req.slide_count)
+        clean_code, img_temps = inject_images(clean_code, req.slide_count)
 
         # Detect truncation: code must end with writeFile call
         if 'pres.writeFile' not in clean_code:
@@ -529,7 +542,8 @@ async def generate_stream(req: GenerateRequest):
                 except Exception as e:
                     yield f"data: {json.dumps({'stage': -1, 'error': str(e)})}\n\n"
                     return
-                retry_code = inject_images(retry_code, req.slide_count)
+                retry_code, retry_img_temps = inject_images(retry_code, req.slide_count)
+                img_temps.extend(retry_img_temps)
                 if 'pres.writeFile' not in retry_code:
                     yield f"data: {json.dumps({'stage': -1, 'error': 'کۆدەکە ناتەواو بوو. دووبارە هەوڵ بدەرەوە.'})}\n\n"
                     return
@@ -558,6 +572,7 @@ async def generate_stream(req: GenerateRequest):
                 os.remove(saved_path)
             except Exception:
                 pass
+            cleanup_temp_images(img_temps)
             actual_secs = time.time() - _gen_start
             record_generation(req.slide_count, req.detail_level, _addon_count(req), req.is_pro, actual_secs)
             download_url = f"/pptx/{file_id}"
