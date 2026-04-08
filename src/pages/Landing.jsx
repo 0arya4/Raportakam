@@ -22,7 +22,7 @@ export default function Landing() {
       <Navbar />
 
       {/* ── HERO ─────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center overflow-hidden px-6 pt-24 pb-20">
+      <section className="relative min-h-screen flex items-center overflow-hidden px-6 pt-20 pb-10 sm:pt-24 sm:pb-20">
 
         {/* BG */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -188,9 +188,9 @@ export default function Landing() {
       </section>
 
       {/* ── HOW IT WORKS — Vertical Timeline ─────── */}
-      <section className="py-28 px-6">
+      <section className="py-12 sm:py-28 px-6">
         <div className="max-w-4xl mx-auto">
-          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-20">
+          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-10 sm:mb-20">
             <p className="text-yellow-400 text-xs font-bold tracking-[0.2em] uppercase mb-3">پڕۆسەکە</p>
             <h2 className="text-5xl font-black">چۆن کاردەکات؟</h2>
           </motion.div>
@@ -232,7 +232,7 @@ export default function Landing() {
       </section>
 
       {/* ── WHY US — Comparison ──────────────────── */}
-      <section className="py-28 px-6">
+      <section className="py-12 sm:py-28 px-6">
         <div className="max-w-5xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
             <h2 className="text-5xl font-black mb-3">جیاوازی ئێمە چیە؟</h2>
@@ -295,7 +295,7 @@ export default function Landing() {
       </section>
 
       {/* ── CTA ──────────────────────────────────── */}
-      <section className="py-28 px-6">
+      <section className="py-12 sm:py-28 px-6">
         <div className="max-w-4xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
             className="relative rounded-3xl overflow-hidden">

@@ -268,10 +268,16 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="p-4 bg-red-950 border border-red-700 rounded-xl text-red-400 text-sm text-center space-y-3">
           <p>{error}</p>
-          <button onClick={() => { hasStartedRef.current = false; startGeneration() }}
-            className="px-4 py-2 bg-red-800 hover:bg-red-700 rounded-lg text-white text-sm transition">
-            دووبارە هەوڵ بدەوە
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <button onClick={() => { hasStartedRef.current = false; startGeneration() }}
+              className="px-4 py-2 bg-red-800 hover:bg-red-700 rounded-lg text-white text-sm transition">
+              دووبارە هەوڵ بدەوە
+            </button>
+            <button onClick={onReset}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-sm transition">
+              ← گەڕانەوە
+            </button>
+          </div>
         </motion.div>
       )}
     </div>

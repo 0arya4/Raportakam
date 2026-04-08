@@ -1,6 +1,10 @@
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Navbar from '../components/Navbar'
+import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
+import { useEffect } from 'react'
 import pptxLogo from '../assets/pptx.png.png'
 import wordLogo from '../assets/word.png.png'
 
@@ -63,8 +67,53 @@ const SERVICES = [
   },
 ]
 
+const AI_MODELS = [
+  {
+    id: 'haiku',
+    name: 'Haiku',
+    tag: 'خۆڕای',
+    desc: '3x هێندە خێراترە لە سۆنێت\nبۆ کاری خێرا و کاری ڕۆژانە\nکوالیتی ئاسای\nڕێژەی جوانی دیززاینەکەی ٪80',
+    icon: '⚡',
+    pro: false,
+    border: 'border-slate-600',
+    activeBorder: 'border-cyan-400',
+    activeGlow: 'rgba(34,211,238,0.5)',
+    tagColor: 'text-cyan-400 bg-cyan-400/10',
+  },
+  {
+    id: 'sonnet',
+    name: 'Sonnet',
+    tag: 'پڕۆ',
+    desc: 'خاوترە لەچاو مۆدێلەکانی تر\nبۆ کاری پڕۆفیشناڵ و ئاڵۆز\nکوالیتی زۆر بەرز\nڕێژەی جوانی دیزاینەکەی ٪95',
+    icon: '👑',
+    pro: true,
+    border: 'border-slate-600',
+    activeBorder: 'border-yellow-400',
+    activeGlow: 'rgba(234,179,8,0.5)',
+    tagColor: 'text-yellow-400 bg-yellow-400/10',
+  },
+]
+
 export default function Services() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const [isPro, setIsPro] = useState(false)
+  const [selectedAI, setSelectedAI] = useState('haiku')
+
+  useEffect(() => {
+    if (!user) return
+    supabase.from('profiles').select('plan').eq('id', user.id).single()
+      .then(({ data }) => {
+        if (data?.plan === 'pro') {
+          setIsPro(true)
+        }
+      })
+  }, [user])
+
+  const handleServiceClick = (s) => {
+    if (!s.active) return
+    navigate(`${s.path}&ai=${selectedAI}`)
+  }
 
   return (
     <>
@@ -75,10 +124,63 @@ export default function Services() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-12"
+            className="text-center mb-10"
           >
             <h1 className="text-4xl sm:text-5xl font-black text-white mb-3">خزمەتگوزاریەکان</h1>
-            <p className="text-slate-500 text-lg">خزمەتگوزاریەکەت هەڵبژێرە</p>
+          </motion.div>
+
+          {/* AI Model Selector */}
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-8">
+            <p className="text-slate-400 text-sm font-medium mb-3 text-center">مۆدێلی AI هەڵبژێرە</p>
+            <div className="grid grid-cols-2 gap-3">
+              {AI_MODELS.map(m => {
+                const locked = m.pro && !isPro
+                const active = selectedAI === m.id
+                return (
+                  <motion.button
+                    key={m.id}
+                    whileHover={!locked ? { scale: 1.02 } : {}}
+                    whileTap={!locked ? { scale: 0.98 } : {}}
+                    onClick={() => !locked && setSelectedAI(m.id)}
+                    className={`relative flex flex-col items-center text-center gap-2 p-4 rounded-2xl border-2 transition ${
+                      active ? `${m.activeBorder} bg-white/5` : `${m.border} bg-slate-900/60`
+                    } ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    style={active ? { boxShadow: `0 0 24px ${m.activeGlow}, 0 0 48px ${m.activeGlow}` } : {}}
+                  >
+                    {/* Illustration icon */}
+                    {m.id === 'haiku' ? (
+                      <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                        <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none">
+                          <path d="M16 4L10 16h4l-2 12 12-14h-5l3-10H16z" fill="#22d3ee" stroke="#06b6d4" strokeWidth="1" strokeLinejoin="round"/>
+                          <circle cx="16" cy="16" r="14" stroke="#22d3ee" strokeWidth="0.5" strokeDasharray="2 3" opacity="0.4"/>
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
+                        <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none">
+                          <path d="M16 3l2.5 7.5H27l-6.5 4.7 2.5 7.5L16 18l-7 4.7 2.5-7.5L5 10.5h8.5z" fill="#eab308" stroke="#ca8a04" strokeWidth="0.8" strokeLinejoin="round"/>
+                          <circle cx="16" cy="26" r="2" fill="#eab308" opacity="0.6"/>
+                          <path d="M10 28h12" stroke="#eab308" strokeWidth="1" strokeLinecap="round" opacity="0.4"/>
+                        </svg>
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center justify-center gap-2">
+                        <span className={`font-black text-sm ${active ? 'text-white' : 'text-slate-300'}`}>{m.name}</span>
+                      </div>
+                      <p className="text-slate-400 text-xs mt-1 font-semibold whitespace-pre-line">{m.desc}</p>
+                    </div>
+                    <span className={`absolute top-2 left-2 text-xs font-bold px-2 py-0.5 rounded-full ${m.tagColor}`}>{m.tag}</span>
+                    {locked && (
+                      <span className="absolute bottom-2 left-2 text-xs text-yellow-400/80">🔒 پڕۆ پێویستە</span>
+                    )}
+                    {active && (
+                      <div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-yellow-400" />
+                    )}
+                  </motion.button>
+                )
+              })}
+            </div>
           </motion.div>
 
           <div className="grid grid-cols-2 gap-4 sm:gap-6">
@@ -90,7 +192,7 @@ export default function Services() {
                 transition={{ delay: i * 0.07 }}
                 whileHover={s.active ? { scale: 1.03, boxShadow: s.glow ? `0 0 30px ${s.glow}` : undefined } : {}}
                 whileTap={s.active ? { scale: 0.97 } : {}}
-                onClick={() => s.active && navigate(s.path)}
+                onClick={() => handleServiceClick(s)}
                 className={`relative bg-gradient-to-br ${s.color} border ${s.border} rounded-2xl p-6 sm:p-8 flex flex-col items-center text-center gap-3 transition ${
                   s.active ? 'cursor-pointer' : 'cursor-default opacity-50'
                 }`}
@@ -112,6 +214,10 @@ export default function Services() {
                 )}
               </motion.div>
             ))}
+          </div>
+
+          <div className="text-center mt-8">
+            <button onClick={() => navigate(-1)} className="flex items-center justify-center gap-1 border border-slate-700 hover:border-slate-600 text-slate-400 hover:text-slate-200 text-sm font-medium px-5 py-4 rounded-xl transition w-full hover:bg-white/5">← گەڕانەوە</button>
           </div>
 
         </div>

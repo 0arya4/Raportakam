@@ -90,6 +90,8 @@ export default function Create() {
   const slideRefs = useRef([])
 
   const isPro = profile?.plan === 'pro'
+  const aiParam = searchParams.get('ai')
+  const useSonnet = aiParam === 'sonnet' && isPro
   const userPoints = profile?.points ?? 100
 
   const SLIDE_OPTIONS = [1,2,3,4,5,6,7,8,9,10,15,20,25,30]
@@ -139,7 +141,7 @@ export default function Create() {
     conclusion: form.conclusion,
     addon_references: form.addonReferences,
     file_name: form.fileName,
-    is_pro: isPro,
+    is_pro: useSonnet || isPro,
   })
 
   const handleNext = () => {
