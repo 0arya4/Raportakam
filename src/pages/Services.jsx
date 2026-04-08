@@ -22,11 +22,11 @@ const SERVICES = [
   {
     logo: wordLogo,
     title: 'دروستکردنی ڕاپۆرت',
-    desc: 'ڕاپۆرتی تەواو بە Word',
-    color: 'from-blue-500/20 to-indigo-500/20',
-    border: 'border-blue-500/40',
-    glow: 'rgba(59,130,246,0.3)',
-    active: true,
+    desc: 'بەم نزیکانە',
+    color: 'from-slate-500/10 to-slate-600/10',
+    border: 'border-slate-700/40',
+    glow: null,
+    active: false,
     path: '/create?type=word',
   },
   {
