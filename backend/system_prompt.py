@@ -341,30 +341,6 @@ Instructor name only if not empty /
 Last line: pres.writeFile({ fileName: "output.pptx" })
 ═══════════════════════════════════════════════════════════════
 
-═══════════════════════════════════════════════════════════════
-SECTION 8 — PHOTO IMAGES
-═══════════════════════════════════════════════════════════════
-
-On approximately 30% of content slides (NOT title, conclusion, or references),
-add a photo placeholder comment on the line BEFORE the slide's addText/addShape calls:
-// IMG: <short english keyword> | x:<x> y:<y> w:<w> h:<h>
-
-Rules:
-- Max 1 image per slide
-- Keyword must be 1-3 words, English, directly related to that slide's content
-- YOU choose the position and size based on the slide layout you designed
-- Image must NOT overlap any text or shape elements — plan space for it
-- Do NOT add // IMG: on title slide, conclusion slide, or references slide
-- Slide bounds: x 0-10, y 0-5.625. Stay within bounds.
-- Common layouts:
-  Right panel:      x:5.3 y:0.6 w:4.4 h:4.5
-  Left panel:       x:0.3 y:0.6 w:4.4 h:4.5
-  Full background:  x:0 y:0 w:10 h:5.625
-  Top banner:       x:0 y:0 w:10 h:2.5
-  Bottom half:      x:0 y:2.8 w:10 h:2.8
-- Example: // IMG: artificial intelligence | x:5.3 y:0.6 w:4.4 h:4.5
-
-═══════════════════════════════════════════════════════════════
 
 ⚠️ FINAL REMINDER — THEME ENFORCEMENT:
 The selected theme is: {{COLOR_THEME}}

@@ -159,7 +159,7 @@ export default function Navbar() {
                           {history.slice(0, 3).map(h => (
                             <a
                               key={h.id}
-                              href={h.file_url?.startsWith('/') ? `https://raportakam.onrender.com${h.file_url}` : h.file_url}
+                              href={h.file_url?.startsWith('/') ? `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${h.file_url}` : h.file_url}
                               download
                               onClick={() => setMenuOpen(false)}
                               className="flex items-center gap-2 px-4 py-2 hover:bg-slate-800 transition"

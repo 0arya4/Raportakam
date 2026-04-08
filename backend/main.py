@@ -13,46 +13,20 @@ import shutil
 import time
 import boto3
 from botocore.config import Config
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 import anthropic
-import requests as http_requests
 from system_prompt import SYSTEM_PROMPT
 from pptx import Presentation
 from pptx.enum.text import MSO_AUTO_SIZE
 
-UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY", "")
-UNSPLASH_ENABLED = os.getenv("UNSPLASH_ENABLED", "true").lower() == "true"
+_ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(dotenv_path=_ENV_PATH, override=True)
+_env_vals = dotenv_values(_ENV_PATH)
+_anthropic_key = _env_vals.get("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY") or ""
+print(f"[STARTUP] ENV_PATH={_ENV_PATH} key_len={len(_anthropic_key)} key_start={_anthropic_key[:15]!r}")
 
-def fetch_unsplash_image(keyword: str) -> dict | None:
-    """Fetch one image from Unsplash. Returns {url, attribution} or None on failure."""
-    if not UNSPLASH_ACCESS_KEY:
-        return None
-    try:
-        r = http_requests.get(
-            "https://api.unsplash.com/photos/random",
-            params={"query": keyword, "orientation": "landscape"},
-            headers={"Authorization": f"Client-ID {UNSPLASH_ACCESS_KEY}"},
-            timeout=4,
-        )
-        if r.status_code != 200:
-            return None
-        data = r.json()
-        # Trigger download as required by Unsplash guidelines
-        dl_url = data.get("links", {}).get("download_location", "")
-        if dl_url:
-            try:
-                http_requests.get(dl_url, headers={"Authorization": f"Client-ID {UNSPLASH_ACCESS_KEY}"}, timeout=3)
-            except Exception:
-                pass
-        image_url = data.get("urls", {}).get("regular", "")
-        photographer = data.get("user", {}).get("name", "Unsplash")
-        if not image_url:
-            return None
-        return {"url": image_url, "attribution": f"Photo by {photographer} on Unsplash"}
-    except Exception:
-        return None
-
-load_dotenv()
+import logging
+_logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI()
 
@@ -64,7 +38,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-claude = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+@app.on_event("startup")
+async def _startup_log():
+    _logger.info(f"[STARTUP] ENV_PATH={_ENV_PATH}")
+    _logger.info(f"[STARTUP] key_len={len(_anthropic_key)} key_start={_anthropic_key[:15]!r}")
+    _logger.info(f"[STARTUP] key loaded OK")
+
+claude = anthropic.Anthropic(api_key=_anthropic_key)
 
 # ── Smart Estimation System ──────────────────────────────────────────────────
 STATS_FILE = os.path.join(os.path.dirname(__file__), "generation_stats.json")
@@ -245,63 +225,6 @@ async def add_points(secret: str = "", user_id: str = "", points: int = 0):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def inject_images(code: str, slide_count: int):
-    """
-    Find // IMG: keyword markers in generated JS, fetch images from Unsplash,
-    download each to a temp file, and replace markers with slide.addImage() calls.
-    Returns (modified_code, list_of_temp_files_to_cleanup).
-    """
-    temp_files = []
-
-    if not UNSPLASH_ENABLED or not UNSPLASH_ACCESS_KEY:
-        return re.sub(r'//\s*IMG:\s*[^\n]+\n?', '', code), temp_files
-
-    markers = list(re.finditer(r'//\s*IMG:\s*([^\n]+)', code))
-    max_images = max(1, int(slide_count * 0.3))
-    print(f"[inject_images] found {len(markers)} markers, max={max_images}")
-    markers = markers[:max_images]
-
-    for m in reversed(markers):
-        raw = m.group(1).strip()
-        coord_match = re.search(r'\|\s*x:([\d.]+)\s+y:([\d.]+)\s+w:([\d.]+)\s+h:([\d.]+)', raw)
-        keyword = re.sub(r'\|.*', '', raw).strip()
-        x, y, w, h = coord_match.groups() if coord_match else ("5.2", "0.5", "4.5", "4.6")
-
-        img = fetch_unsplash_image(keyword)
-        replacement = ''
-        if img:
-            try:
-                r = http_requests.get(img['url'], timeout=8)
-                r.raise_for_status()
-                ext = '.png' if 'png' in r.headers.get('content-type', '') else '.jpg'
-                fd, tmp_path = tempfile.mkstemp(suffix=ext)
-                with os.fdopen(fd, 'wb') as f:
-                    f.write(r.content)
-                temp_files.append(tmp_path)
-                tmp_path_js = tmp_path.replace('\\', '/')
-                attr = img['attribution'].replace("'", "\\'")
-                attr_y = str(min(round(float(y) + float(h) + 0.02, 2), 5.35))
-                replacement = (
-                    f"slide.addImage({{path:\"{tmp_path_js}\",x:{x},y:{y},w:{w},h:{h}}});\n"
-                    f"slide.addText(\"{attr}\",{{x:{x},y:{attr_y},w:{w},h:0.2,fontSize:6,color:\"AAAAAA\",align:\"right\"}});\n"
-                )
-            except Exception as e:
-                print(f"[inject_images] download failed for '{keyword}': {e}")
-
-        code = code[:m.start()] + replacement + code[m.end():]
-
-    code = re.sub(r'//\s*IMG:\s*[^\n]+\n?', '', code)
-    return code, temp_files
-
-
-def cleanup_temp_images(temp_files: list):
-    for f in temp_files:
-        try:
-            os.remove(f)
-        except Exception:
-            pass
-
-
 def fix_text_overflow(path):
     try:
         prs = Presentation(path)
@@ -319,9 +242,11 @@ def fix_text_overflow(path):
 
 
 def sanitize_js(code: str) -> str:
-    # Fix wrong pptxgenjs constructor: new pptxgen.PresentationOptions() → new pptxgen()
+    # Fix wrong pptxgenjs constructor variants → new pptxgen()
     code = re.sub(r'new\s+pptxgen\.PresentationOptions\s*\(\s*\)', 'new pptxgen()', code)
     code = re.sub(r'new\s+pptxgen\.Presentation\s*\(\s*\)', 'new pptxgen()', code)
+    code = re.sub(r'new\s+pptxgen\.PptxGenJS\s*\(\s*\)', 'new pptxgen()', code)
+    code = re.sub(r'new\s+PptxGenJS\s*\(\s*\)', 'new pptxgen()', code)
     # Curly/smart quotes → straight ASCII
     code = code.replace('\u201c', '"').replace('\u201d', '"')
     code = code.replace('\u2018', "'").replace('\u2019', "'")
@@ -477,7 +402,6 @@ async def generate_stream(req: GenerateRequest):
             return sanitize_js(raw.strip())
 
         clean_code = _extract_code(full_code)
-        clean_code, img_temps = inject_images(clean_code, req.slide_count)
 
         # Detect truncation: code must end with writeFile call
         if 'pres.writeFile' not in clean_code:
@@ -542,8 +466,6 @@ async def generate_stream(req: GenerateRequest):
                 except Exception as e:
                     yield f"data: {json.dumps({'stage': -1, 'error': str(e)})}\n\n"
                     return
-                retry_code, retry_img_temps = inject_images(retry_code, req.slide_count)
-                img_temps.extend(retry_img_temps)
                 if 'pres.writeFile' not in retry_code:
                     yield f"data: {json.dumps({'stage': -1, 'error': 'کۆدەکە ناتەواو بوو. دووبارە هەوڵ بدەرەوە.'})}\n\n"
                     return
@@ -572,7 +494,6 @@ async def generate_stream(req: GenerateRequest):
                 os.remove(saved_path)
             except Exception:
                 pass
-            cleanup_temp_images(img_temps)
             actual_secs = time.time() - _gen_start
             record_generation(req.slide_count, req.detail_level, _addon_count(req), req.is_pro, actual_secs)
             download_url = f"/pptx/{file_id}"
