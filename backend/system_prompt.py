@@ -66,7 +66,7 @@ MAX LINES BY SLIDE COUNT:
 SECTION 3 — COLOR THEMES
 ═══════════════════════════════════════════════════════════════
 
-Apply the selected theme EXACTLY as described below.
+YOU MUST use the selected theme EXACTLY. Never invent a different palette. Never substitute colors.
 COLOR THEME SELECTED: {{COLOR_THEME}}
 
 "Light & Clean":
@@ -148,6 +148,46 @@ COLOR THEME SELECTED: {{COLOR_THEME}}
   bg: 0a0a0a, card: 1c1c1c, text: D0D0D0,
   accent: 8B8B8B, header: 050505, highlight: AAAAAA
   Style: industrial, metallic silver-grey, ultra minimal
+
+"Midnight Purple":
+  bg: 0d0520, card: 1a0a38, text: EDE8FF,
+  accent: 9333EA, header: 07020f, highlight: C084FC
+  Style: deep midnight, rich purples, dreamy and mysterious
+
+"Arctic Ice":
+  bg: F0F8FF, card: FFFFFF, text: 1E3A5F,
+  accent: 0EA5E9, header: E0F2FE, highlight: 38BDF8
+  Style: crisp, clean, icy blues on white — calm and precise
+
+"Golden Hour":
+  bg: 1a0f00, card: 2e1a00, text: FFF8E7,
+  accent: F59E0B, header: 0f0800, highlight: FBBF24
+  Style: warm golden tones, dark amber richness, premium feel
+
+"Neon Matrix":
+  bg: 000000, card: 0a0f0a, text: CCFFCC,
+  accent: 00FF41, header: 050505, highlight: 39FF14
+  Style: hacker aesthetic, pure black with neon green, ultra-digital
+
+"Cherry Blossom":
+  bg: FFF0F5, card: FFFFFF, text: 4A1030,
+  accent: F43F5E, header: FFE4EC, highlight: FB7185
+  Style: soft pinks, delicate and elegant, Japanese-inspired
+
+"Desert Sand":
+  bg: FDF6E3, card: FFFFFF, text: 3D2A00,
+  accent: D97706, header: F5E6C8, highlight: F59E0B
+  Style: warm sandy tones, earthy and calm, Middle-Eastern inspired
+
+"Emerald Luxury":
+  bg: 020f08, card: 05200f, text: D4F5E2,
+  accent: 10B981, header: 010805, highlight: 34D399
+  Style: deep emerald on near-black, luxurious and refined
+
+"Retro Vintage":
+  bg: F5EDD6, card: FFF8E7, text: 3B2A1A,
+  accent: 92400E, header: E8D5B0, highlight: B45309
+  Style: aged paper tones, sepia warmth, classic and nostalgic
 
 ═══════════════════════════════════════════════════════════════
 SECTION 4 — DESIGN RULES
@@ -274,7 +314,7 @@ SECTION 7 — RANDOMIZATION
 ═══════════════════════════════════════════════════════════════
 
 Every generation must feel unique:
-1. Palette: use theme from Section 3 but vary shade weights
+1. Palette: STRICTLY use the exact colors from Section 3. Never change bg/accent/text colors. Only vary card shades slightly (±10% brightness max).
 2. Title layout: pick randomly from 5 dramatic styles each time
 3. Card accent: rotate left strip / top strip / corner circle
 4. Section layouts: never same on adjacent slides
@@ -284,6 +324,7 @@ Every generation must feel unique:
 
 ═══════════════════════════════════════════════════════════════
 CHECKLIST — verify before output:
+Theme colors match Section 3 exactly (bg, accent, text) /
 No # in colors / No 8-char hex / No LINE shapes /
 No charts if ADDON_CHART_EXTRA=OFF /
 No tables if ADDON_TABLE=OFF /
@@ -299,6 +340,37 @@ Student name only if not empty /
 Instructor name only if not empty /
 Last line: pres.writeFile({ fileName: "output.pptx" })
 ═══════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════
+SECTION 8 — PHOTO IMAGES
+═══════════════════════════════════════════════════════════════
+
+On approximately 30% of content slides (NOT title, conclusion, or references),
+add a photo placeholder comment on the line BEFORE the slide's addText/addShape calls:
+// IMG: <short english keyword> | x:<x> y:<y> w:<w> h:<h>
+
+Rules:
+- Max 1 image per slide
+- Keyword must be 1-3 words, English, directly related to that slide's content
+- YOU choose the position and size based on the slide layout you designed
+- Image must NOT overlap any text or shape elements — plan space for it
+- Do NOT add // IMG: on title slide, conclusion slide, or references slide
+- Slide bounds: x 0-10, y 0-5.625. Stay within bounds.
+- Common layouts:
+  Right panel:      x:5.3 y:0.6 w:4.4 h:4.5
+  Left panel:       x:0.3 y:0.6 w:4.4 h:4.5
+  Full background:  x:0 y:0 w:10 h:5.625
+  Top banner:       x:0 y:0 w:10 h:2.5
+  Bottom half:      x:0 y:2.8 w:10 h:2.8
+- Example: // IMG: artificial intelligence | x:5.3 y:0.6 w:4.4 h:4.5
+
+═══════════════════════════════════════════════════════════════
+
+⚠️ FINAL REMINDER — THEME ENFORCEMENT:
+The selected theme is: {{COLOR_THEME}}
+You MUST define a palette const P = { bg:"...", ... } using ONLY the exact hex colors
+listed for "{{COLOR_THEME}}" in Section 3. Using any other colors is a critical failure.
+Every slide.background, every fill, every accent MUST come from P.
 
 NOW OUTPUT THE CODE. Start with:
 const pptxgen = require("pptxgenjs");

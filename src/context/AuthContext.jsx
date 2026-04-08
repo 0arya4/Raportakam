@@ -31,11 +31,35 @@ export function AuthProvider({ children }) {
     // getSession covers the race where INITIAL_SESSION fired before we subscribed.
     // We only call setUser here if onAuthStateChange hasn't already done so
     // (i.e. currentUserIdRef is still the sentinel value `undefined`).
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (currentUserIdRef.current === undefined) {
         const u = session?.user ?? null
         currentUserIdRef.current = u?.id ?? null
         setUser(u)
+
+        // Monthly points reset for free plan users
+        if (u) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('plan, points, points_reset_at')
+            .eq('id', u.id)
+            .single()
+
+          if (profile && profile.plan === 'free' && profile.points < 100) {
+            const now = new Date()
+            const lastReset = profile.points_reset_at ? new Date(profile.points_reset_at) : null
+            const needsReset = !lastReset ||
+              lastReset.getFullYear() < now.getFullYear() ||
+              lastReset.getMonth() < now.getMonth()
+
+            if (needsReset) {
+              await supabase.from('profiles').update({
+                points: 100,
+                points_reset_at: now.toISOString(),
+              }).eq('id', u.id)
+            }
+          }
+        }
       }
       setLoading(false)
     })

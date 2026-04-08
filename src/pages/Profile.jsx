@@ -174,7 +174,19 @@ export default function Profile() {
                         {profile?.plan_expires_at && <span className="text-slate-400 text-xs">بەسەردەچێت لە {new Date(profile.plan_expires_at).toLocaleDateString('en-GB')}</span>}
                       </span>
                     : 'خۆڕایی' },
-                { label: 'خاڵی ماوە', val: `${points} خاڵ` },
+                { label: 'خاڵی ماوە', val: (() => {
+                    if (plan !== 'free' || points >= 100) return `${points} خاڵ`
+                    const now = new Date()
+                    const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+                    const resetStr = resetDate.toLocaleDateString('en-GB')
+                    const toReceive = 100 - points
+                    return (
+                      <span className="flex items-center gap-3">
+                        <span>{points} خاڵ</span>
+                        <span className="text-xs text-yellow-400/80">{toReceive} خاڵ وەردەگریت لە {resetStr}</span>
+                      </span>
+                    )
+                  })() },
               ].map((row, i) => (
                 <div key={i} className="flex items-center justify-between py-3 border-b border-slate-800 last:border-0">
                   <span className="text-white font-medium text-sm">{row.val}</span>

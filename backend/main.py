@@ -15,7 +15,42 @@ import boto3
 from botocore.config import Config
 from dotenv import load_dotenv
 import anthropic
+import requests as http_requests
 from system_prompt import SYSTEM_PROMPT
+from pptx import Presentation
+from pptx.enum.text import MSO_AUTO_SIZE
+
+UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY", "")
+UNSPLASH_ENABLED = os.getenv("UNSPLASH_ENABLED", "true").lower() == "true"
+
+def fetch_unsplash_image(keyword: str) -> dict | None:
+    """Fetch one image from Unsplash. Returns {url, attribution} or None on failure."""
+    if not UNSPLASH_ACCESS_KEY:
+        return None
+    try:
+        r = http_requests.get(
+            "https://api.unsplash.com/photos/random",
+            params={"query": keyword, "orientation": "landscape"},
+            headers={"Authorization": f"Client-ID {UNSPLASH_ACCESS_KEY}"},
+            timeout=4,
+        )
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        # Trigger download as required by Unsplash guidelines
+        dl_url = data.get("links", {}).get("download_location", "")
+        if dl_url:
+            try:
+                http_requests.get(dl_url, headers={"Authorization": f"Client-ID {UNSPLASH_ACCESS_KEY}"}, timeout=3)
+            except Exception:
+                pass
+        image_url = data.get("urls", {}).get("regular", "")
+        photographer = data.get("user", {}).get("name", "Unsplash")
+        if not image_url:
+            return None
+        return {"url": image_url, "attribution": f"Photo by {photographer} on Unsplash"}
+    except Exception:
+        return None
 
 load_dotenv()
 
@@ -210,6 +245,66 @@ async def add_points(secret: str = "", user_id: str = "", points: int = 0):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def inject_images(code: str, slide_count: int) -> str:
+    """
+    Find // IMG: keyword markers in generated JS, fetch images from Unsplash,
+    and replace each marker with a slide.addImage() call.
+    Limited to 30% of slides. Silently skips on failure.
+    """
+    if not UNSPLASH_ENABLED or not UNSPLASH_ACCESS_KEY:
+        print(f"[inject_images] disabled or no key — removing markers")
+        return re.sub(r'//\s*IMG:\s*[^\n]+\n?', '', code)
+
+    markers = list(re.finditer(r'//\s*IMG:\s*([^\n]+)', code))
+    max_images = max(1, int(slide_count * 0.3))
+    print(f"[inject_images] found {len(markers)} markers, max_images={max_images}, enabled={UNSPLASH_ENABLED}, has_key={bool(UNSPLASH_ACCESS_KEY)}")
+    markers = markers[:max_images]
+
+    for m in reversed(markers):  # reversed so positions stay valid
+        raw = m.group(1).strip()
+        # Parse optional coordinates: // IMG: keyword | x:5.2 y:0.5 w:4.5 h:4.6
+        coord_match = re.search(r'\|\s*x:([\d.]+)\s+y:([\d.]+)\s+w:([\d.]+)\s+h:([\d.]+)', raw)
+        keyword = re.sub(r'\|.*', '', raw).strip()
+        if coord_match:
+            x, y, w, h = coord_match.groups()
+        else:
+            x, y, w, h = "5.2", "0.5", "4.5", "4.6"  # fallback
+        img = fetch_unsplash_image(keyword)
+        if not img:
+            replacement = ''
+        else:
+            url = img['url']
+            attr = img['attribution'].replace("'", "\\'")
+            attr_x = x
+            attr_y = str(round(float(y) + float(h) + 0.02, 2))
+            attr_y = str(min(float(attr_y), 5.35))
+            replacement = (
+                f"slide.addImage({{path:\"{url}\",x:{x},y:{y},w:{w},h:{h}}});\n"
+                f"slide.addText(\"{attr}\",{{x:{attr_x},y:{attr_y},w:{w},h:0.2,fontSize:6,color:\"AAAAAA\",align:\"right\"}});\n"
+            )
+        code = code[:m.start()] + replacement + code[m.end():]
+
+    # Remove any remaining markers that exceeded the limit
+    code = re.sub(r'//\s*IMG:\s*[^\n]+\n?', '', code)
+    return code
+
+
+def fix_text_overflow(path):
+    try:
+        prs = Presentation(path)
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    tf = shape.text_frame
+                    tf.word_wrap = True
+                    total_chars = sum(len(p.text) for p in tf.paragraphs)
+                    if total_chars > 80:
+                        tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+        prs.save(path)
+    except Exception as e:
+        print(f"[fix_text_overflow] skipped: {e}")
+
+
 def sanitize_js(code: str) -> str:
     # Curly/smart quotes → straight ASCII
     code = code.replace('\u201c', '"').replace('\u201d', '"')
@@ -366,6 +461,7 @@ async def generate_stream(req: GenerateRequest):
             return sanitize_js(raw.strip())
 
         clean_code = _extract_code(full_code)
+        clean_code = inject_images(clean_code, req.slide_count)
 
         # Detect truncation: code must end with writeFile call
         if 'pres.writeFile' not in clean_code:
@@ -430,6 +526,7 @@ async def generate_stream(req: GenerateRequest):
                 except Exception as e:
                     yield f"data: {json.dumps({'stage': -1, 'error': str(e)})}\n\n"
                     return
+                retry_code = inject_images(retry_code, req.slide_count)
                 if 'pres.writeFile' not in retry_code:
                     yield f"data: {json.dumps({'stage': -1, 'error': 'کۆدەکە ناتەواو بوو. دووبارە هەوڵ بدەرەوە.'})}\n\n"
                     return
@@ -445,6 +542,8 @@ async def generate_stream(req: GenerateRequest):
                 return
 
             yield f"data: {json.dumps({'stage': 4, 'label': 'Building your file...'})}\n\n"
+
+            fix_text_overflow(saved_path)
 
             file_id = str(uuid.uuid4())
             r2_key = f"presentations/{file_id}.pptx"

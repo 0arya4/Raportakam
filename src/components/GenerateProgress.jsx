@@ -5,9 +5,9 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const STAGES = [
   { id: 1, label: "شیکردنەوەی بابەت...",    icon: "🔍" },
-  { id: 2, label: "دیزاینکردنی شێوازەکان...", icon: "🎨" },
-  { id: 3, label: "دروستکردنی سلایدەکان...",  icon: "✨" },
-  { id: 4, label: "بینای فایلەکە...",          icon: "⚙️" },
+  { id: 2, label: "دیزاینکردنی سڵایدەکان...", icon: "🎨" },
+  { id: 3, label: "دروستکردنی سڵایدەکان...",  icon: "✨" },
+  { id: 4, label: "ئەپلۆدکردنی فایلەکە...",   icon: "⚙️" },
   { id: 5, label: "ئامادەیە!",                icon: "⬇️" },
 ]
 
@@ -67,11 +67,12 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
     return () => clearInterval(timerRef.current)
   }, [running])
 
+  const isOvertime = estimate !== null && elapsed >= estimate
+
   const getTimerLabel = () => {
     if (estimate === null) return '---'
     if (elapsed < estimate) return `~${estimate - elapsed} چرکە`
-    const extra = (elapsed - estimate) % 10
-    return `~${10 - extra} چرکە`
+    return '...'
   }
 
   const startGeneration = async () => {
@@ -156,13 +157,30 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
         {(running || downloadUrl) && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
             {running && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="flex items-center justify-between px-4 py-2 rounded-xl bg-slate-900 border border-slate-800">
-                <span className="text-slate-500 text-xs">کاتی خایەنراو</span>
-                <span className="text-orange-400 font-bold text-sm">
-                  {getTimerLabel()}
-                </span>
-              </motion.div>
+              <>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="flex items-center justify-between px-4 py-2 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="text-slate-500 text-xs">کاتی خایەنراو</span>
+                  <span className="text-orange-400 font-bold text-sm">
+                    {getTimerLabel()}
+                  </span>
+                </motion.div>
+                <AnimatePresence>
+                  {isOvertime && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      className="flex items-start gap-2 px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700/50 text-slate-400 text-xs"
+                      dir="rtl"
+                    >
+                      <span className="text-base mt-0.5">☁️</span>
+                      <span>
+                        <span className="font-semibold" style={{ color: '#f97316', textShadow: '0 0 8px rgba(249,115,22,0.7)' }}>لە کاتی ئاسای زیاتری پێچوو</span><br />
+                        <span className="text-slate-500">بەهۆی خاوی ئینتەرنێت یان زۆری وردەکاری لە سڵایدەکان</span>
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
             )}
             {STAGES.map((stage) => {
               const isDone = currentStage > stage.id

@@ -35,6 +35,14 @@ const COLOR_THEMES = [
   { id: 'Rose Gold',            label: 'ئەلتوونی گوڵناری',  preview: 'from-rose-50 to-pink-100',                        icon: '🌸' },
   { id: 'Cyberpunk',            label: 'سایبەرپەنک',        preview: 'from-neutral-950 via-indigo-950 to-neutral-950',  icon: '⚡' },
   { id: 'Titanium',             label: 'تایتانیۆم',         preview: 'from-neutral-950 to-zinc-800',                    icon: '🔩' },
+  { id: 'Midnight Purple',      label: 'شەوی مۆر',          preview: 'from-purple-950 via-violet-900 to-purple-800',    icon: '🌙' },
+  { id: 'Arctic Ice',           label: 'قەڵای باکووری',      preview: 'from-sky-100 via-blue-50 to-white',               icon: '🧊' },
+  { id: 'Golden Hour',          label: 'کاتی زێڕین',        preview: 'from-yellow-950 via-amber-800 to-yellow-700',     icon: '🌟' },
+  { id: 'Neon Matrix',          label: 'نیۆن ماتریکس',      preview: 'from-black via-green-950 to-black',               icon: '💻' },
+  { id: 'Cherry Blossom',       label: 'گوڵی گیلاس',        preview: 'from-pink-100 via-rose-200 to-pink-50',           icon: '🌸' },
+  { id: 'Desert Sand',          label: 'خاکی چۆڵ',          preview: 'from-amber-100 via-yellow-200 to-orange-100',     icon: '🏜️' },
+  { id: 'Emerald Luxury',       label: 'زمرودی فاخر',       preview: 'from-emerald-950 via-green-900 to-emerald-800',   icon: '💎' },
+  { id: 'Retro Vintage',        label: 'کلاسیکی کۆن',       preview: 'from-stone-200 via-amber-100 to-stone-300',       icon: '📜' },
 ]
 
 const DETAIL_LEVELS = [
@@ -75,7 +83,7 @@ export default function Create() {
     date: new Date().toLocaleDateString('en-GB'),
     addonTable: false, addonTimeline: false, addonChartExtra: false,
     addonQuotes: false, addonComparison: false, addonCoverPage: false,
-    conclusion: true, addonReferences: false,
+    conclusion: false, addonReferences: false,
     uploadedFile: null,
   })
   const [result, setResult] = useState(null)
@@ -95,6 +103,8 @@ export default function Create() {
     else if (s === 25) cost += 12
     else if (s === 30) cost += 15
     if (form.detail === 'Detailed') cost += 3
+    const addonKeys = ['addonTable', 'addonTimeline', 'addonChartExtra', 'addonQuotes', 'addonComparison', 'addonCoverPage', 'addonReferences', 'conclusion']
+    cost += addonKeys.filter(k => form[k]).length * 0.5
     return cost
   }
 
@@ -175,7 +185,7 @@ export default function Create() {
       date: new Date().toLocaleDateString('en-GB'),
       addonTable: false, addonTimeline: false, addonChartExtra: false,
       addonQuotes: false, addonComparison: false, addonCoverPage: false,
-      conclusion: true, addonReferences: false,
+      conclusion: false, addonReferences: false,
       uploadedFile: null,
     })
   }
@@ -426,14 +436,14 @@ export default function Create() {
                 <p className="text-sm font-semibold text-white mb-3">ئەکسترا زیاد بکە</p>
                 <div className="space-y-2">
                   {[
-                    { key: 'addonTable',      label: 'خشتە',          icon: '📋', desc: 'زیادکردنی خشتە بە سلایدەکان' },
-                    { key: 'addonTimeline',   label: 'تایم لاین',     icon: '📅', desc: 'سلایدی تایم لاینی ئەفقی' },
-                    { key: 'addonChartExtra', label: 'چارت',           icon: '📈', desc: 'زیادکردنی چارت بە سلایدەکان' },
-                    { key: 'addonQuotes',     label: 'وتەی گەورە',    icon: '💬', desc: 'سلایدی وتەی کشیراو' },
-                    { key: 'addonComparison', label: 'بەراوردکردن',   icon: '⚖️', desc: 'سلایدی بەراورد' },
-                    { key: 'addonCoverPage',  label: 'دیڤایدەر',      icon: '🎯', desc: 'سلایدی جیاکارەوەی بەش' },
-                    { key: 'conclusion',      label: 'دەرئەنجام',     icon: '✅', desc: 'سلایدی کۆتایی و پوختە' },
-                    { key: 'addonReferences', label: 'سەرچاوەکان',    icon: '📚', desc: 'سلایدی سەرچاوە بە شێوازی APA' },
+                    { key: 'addonTable',      label: 'خشتە',          icon: '📋', desc: 'زیادکردنی خشتە بە سلایدەکان', cost: 0.5 },
+                    { key: 'addonTimeline',   label: 'تایم لاین',     icon: '📅', desc: 'سلایدی تایم لاینی ئەفقی',       cost: 0.5 },
+                    { key: 'addonChartExtra', label: 'چارت',           icon: '📈', desc: 'زیادکردنی چارت بە سلایدەکان',  cost: 0.5 },
+                    { key: 'addonQuotes',     label: 'وتەی گەورە',    icon: '💬', desc: 'سلایدی وتەی کشیراو',            cost: 0.5 },
+                    { key: 'addonComparison', label: 'بەراوردکردن',   icon: '⚖️', desc: 'سلایدی بەراورد',               cost: 0.5 },
+                    { key: 'addonCoverPage',  label: 'دیڤایدەر',      icon: '🎯', desc: 'سلایدی جیاکارەوەی بەش',        cost: 0.5 },
+                    { key: 'conclusion',      label: 'دەرئەنجام',     icon: '✅', desc: 'سلایدی کۆتایی و پوختە',        cost: 0.5 },
+                    { key: 'addonReferences', label: 'سەرچاوەکان',    icon: '📚', desc: 'سلایدی سەرچاوە بە شێوازی APA', cost: 0.5 },
                   ].map(opt => (
                     <motion.button key={opt.key} whileTap={{ scale: 0.98 }}
                       onClick={() => set(opt.key, !form[opt.key])}
@@ -443,7 +453,10 @@ export default function Create() {
                       <div className="flex items-center gap-3">
                         <span className="text-lg">{opt.icon}</span>
                         <div className="text-right">
-                          <span className={`text-sm font-medium ${form[opt.key] ? 'text-yellow-400' : 'text-slate-300'}`}>{opt.label}</span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-medium ${form[opt.key] ? 'text-yellow-400' : 'text-slate-300'}`}>{opt.label}</span>
+                            {opt.cost > 0 && <span className="text-xs text-orange-400/80 font-medium">+{opt.cost} خاڵ</span>}
+                          </div>
                           <div className="text-xs text-slate-500">{opt.desc}</div>
                         </div>
                       </div>
