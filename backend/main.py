@@ -339,14 +339,14 @@ def sanitize_js(code: str) -> str:
 
 def pick_model_and_tokens(slide_count: int, is_pro: bool, addon_count: int = 0):
     model = "claude-sonnet-4-6" if is_pro else "claude-haiku-4-5"
-    if slide_count <= 5:    tokens = 8000
-    elif slide_count <= 10: tokens = 10000
-    elif slide_count <= 15: tokens = 13000
-    elif slide_count <= 20: tokens = 16000
-    elif slide_count <= 25: tokens = 19000
-    else:                   tokens = 22000
+    if slide_count <= 5:    tokens = 10000
+    elif slide_count <= 10: tokens = 13000
+    elif slide_count <= 15: tokens = 16000
+    elif slide_count <= 20: tokens = 19000
+    elif slide_count <= 25: tokens = 22000
+    else:                   tokens = 26000
     # Each addon adds extra slides/content — bump the budget to avoid truncation
-    tokens += addon_count * 500
+    tokens += addon_count * 600
     return model, tokens
 
 
