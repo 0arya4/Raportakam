@@ -306,6 +306,9 @@ def fix_text_overflow(path):
 
 
 def sanitize_js(code: str) -> str:
+    # Fix wrong pptxgenjs constructor: new pptxgen.PresentationOptions() → new pptxgen()
+    code = re.sub(r'new\s+pptxgen\.PresentationOptions\s*\(\s*\)', 'new pptxgen()', code)
+    code = re.sub(r'new\s+pptxgen\.Presentation\s*\(\s*\)', 'new pptxgen()', code)
     # Curly/smart quotes → straight ASCII
     code = code.replace('\u201c', '"').replace('\u201d', '"')
     code = code.replace('\u2018', "'").replace('\u2019', "'")

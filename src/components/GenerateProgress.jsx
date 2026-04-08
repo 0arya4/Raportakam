@@ -160,7 +160,7 @@ export default function GenerateProgress({ formData, onComplete, onReset }) {
               <>
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                   className="flex items-center justify-between px-4 py-2 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-slate-500 text-xs">کاتی خایەنراو</span>
+                  <span className="text-slate-500 text-xs">کاتی خەمڵێندراو</span>
                   <span className="text-orange-400 font-bold text-sm">
                     {getTimerLabel()}
                   </span>
