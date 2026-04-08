@@ -18,7 +18,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="min-h-screen bg-slate-950 text-white" dir="rtl">
+        <div className="bg-slate-950 text-white" style={{ minHeight: '100dvh' }} dir="rtl">
           <OrderNotification />
           <Routes>
             <Route path="/" element={<Landing />} />
