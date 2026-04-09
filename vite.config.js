@@ -12,6 +12,7 @@ export default defineConfig({
       '/estimate': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
       '/admin': 'http://localhost:8000',
+      '/ai-detect': 'http://localhost:8000',
     }
   }
 })

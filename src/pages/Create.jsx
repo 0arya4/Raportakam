@@ -228,6 +228,10 @@ export default function Create() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <span className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${useSonnet ? 'bg-yellow-400/10 border-yellow-500/30 text-yellow-400' : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'}`}>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            {useSonnet ? 'Sonnet' : 'Haiku'}
+          </span>
           {profile && (
             profile.plan === 'pro' ? (
               <motion.span animate={{ textShadow: ['0 0 8px #f97316', '0 0 16px #f97316', '0 0 8px #f97316'] }} transition={{ duration: 2, repeat: Infinity }} className="text-xs sm:text-base font-bold text-orange-400">👑 پڕۆ</motion.span>

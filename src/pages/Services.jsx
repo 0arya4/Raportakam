@@ -1,10 +1,9 @@
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { useEffect } from 'react'
 import pptxLogo from '../assets/pptx.png.png'
 import wordLogo from '../assets/word.png.png'
 
@@ -30,13 +29,15 @@ const SERVICES = [
     path: '/create?type=word',
   },
   {
-    icon: '🔜',
-    title: 'لەماوەیەکی کەم زیاد دەبێ',
-    desc: '',
-    color: 'from-slate-800/50 to-slate-900/50',
-    border: 'border-slate-700/40',
-    glow: null,
-    active: false,
+    id: 'ai-detect',
+    icon: '🔍',
+    title: 'دەستنووس یان AI؟',
+    desc: 'بزانە نووسینەکەت دەرەکەوێ کە زیرەکی دەستکردە؟',
+    color: 'from-purple-500/20 to-violet-600/20',
+    border: 'border-purple-500/40',
+    glow: 'rgba(168,85,247,0.3)',
+    active: true,
+    path: '/detect',
   },
   {
     icon: '🔜',
@@ -99,6 +100,14 @@ export default function Services() {
   const { user } = useAuth()
   const [isPro, setIsPro] = useState(false)
   const [selectedAI, setSelectedAI] = useState('haiku')
+  const [infoOpen, setInfoOpen] = useState(false)
+  const infoRef = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => { if (infoRef.current && !infoRef.current.contains(e.target)) setInfoOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -112,7 +121,8 @@ export default function Services() {
 
   const handleServiceClick = (s) => {
     if (!s.active) return
-    navigate(`${s.path}&ai=${selectedAI}`)
+    if (s.path.includes('?')) navigate(`${s.path}&ai=${selectedAI}`)
+    else navigate(`${s.path}?ai=${selectedAI}`)
   }
 
   return (
@@ -197,6 +207,36 @@ export default function Services() {
                   s.active ? 'cursor-pointer' : 'cursor-default opacity-50'
                 }`}
               >
+                {/* Info bubble for AI Detect card */}
+                {s.id === 'ai-detect' && (
+                  <div ref={infoRef} className="absolute top-3 left-3" onClick={e => e.stopPropagation()}>
+                    {/* Pulsing bubble */}
+                    <motion.button
+                      animate={{ opacity: [1, 0.3, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                      onClick={() => setInfoOpen(v => !v)}
+                      className="h-9 px-4 rounded-full bg-purple-500/40 border border-purple-400/60 flex items-center justify-center text-purple-300 text-base font-black hover:bg-purple-500/60 transition whitespace-nowrap"
+                    >
+                      زانیاری
+                    </motion.button>
+                    {/* Popup */}
+                    <AnimatePresence>
+                      {infoOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9, y: -4 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.9, y: -4 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute top-8 left-0 w-56 bg-slate-900 border border-purple-500/40 rounded-xl p-3 shadow-xl z-50 text-right"
+                        >
+                          <p className="text-purple-400 font-black text-xs mb-1">AI Detection - ئەی ئای چێک</p>
+                          <p className="text-slate-300 text-xs leading-relaxed">تێکست ، فایل یان نووسینێک بنێرە پێت ئەڵێین بە ڕێژەی چەند دەرەکەوێ کە زیرەکی دەستکردە</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+
                 {s.logo
                   ? <img src={s.logo} alt={s.title} className="w-20 h-20 sm:w-24 sm:h-24 object-contain" />
                   : <span className="text-4xl sm:text-5xl">{s.icon}</span>
