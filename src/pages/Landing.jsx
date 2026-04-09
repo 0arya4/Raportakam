@@ -39,11 +39,6 @@ export default function Landing() {
 
           {/* Left */}
           <div className="order-1 lg:order-1 text-right">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={loaded ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.1 }}
-              className="inline-flex items-center gap-2 bg-yellow-400/10 border border-yellow-500/30 text-yellow-400 text-xs font-semibold px-4 py-2 rounded-full mb-8">
-              <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-              AI بەکارهاتوو : Claude Sonnet · Claude Haiku
-            </motion.div>
 
             <motion.h1 initial={{ opacity: 0, y: 30 }} animate={loaded ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.2 }}
               className="text-5xl sm:text-6xl xl:text-7xl font-black leading-[1.1] mb-6 tracking-tight">
@@ -97,6 +92,13 @@ export default function Landing() {
                 onClick={() => navigate('/profile')}
                 className="w-full sm:w-auto flex items-center justify-center border border-slate-700 hover:border-slate-600 text-slate-300 font-semibold px-8 py-5 rounded-2xl text-lg transition hover:bg-white/5">
                 پرۆفایل
+              </motion.button>
+
+              {/* Button 4 — فایلەکانم */}
+              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                onClick={() => navigate('/history')}
+                className="w-full sm:w-auto flex items-center justify-center border border-slate-700 hover:border-slate-600 text-slate-300 font-semibold px-8 py-5 rounded-2xl text-lg transition hover:bg-white/5">
+                فایلەکانم
               </motion.button>
 
             </motion.div>
@@ -188,7 +190,7 @@ export default function Landing() {
       </section>
 
       {/* ── HOW IT WORKS — Vertical Timeline ─────── */}
-      <section className="py-12 sm:py-28 px-6">
+      <section id="how" className="py-12 sm:py-28 px-6">
         <div className="max-w-4xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-10 sm:mb-20">
             <p className="text-yellow-400 text-xs font-bold tracking-[0.2em] uppercase mb-3">پڕۆسەکە</p>
@@ -232,7 +234,7 @@ export default function Landing() {
       </section>
 
       {/* ── WHY US — Comparison ──────────────────── */}
-      <section className="py-12 sm:py-28 px-6">
+      <section id="features" className="py-12 sm:py-28 px-6">
         <div className="max-w-5xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
             <h2 className="text-5xl font-black mb-3">جیاوازی ئێمە چیە؟</h2>

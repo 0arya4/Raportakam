@@ -184,6 +184,7 @@ async def admin_users(secret: str = ""):
                 "generations_used": gen_count_map.get(uid, 0),
                 "tokens_used": token_map.get(uid, 0),
                 "created_at": p.get("created_at", ""),
+                "user_number": p.get("user_number"),
             })
 
         users.sort(key=lambda x: x["tokens_used"], reverse=True)

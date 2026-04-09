@@ -119,6 +119,9 @@ export default function Profile() {
                   <div className="flex items-center gap-2 justify-end">
                     <button onClick={() => setNameEdit(true)} className="text-yellow-400 text-xs hover:text-yellow-300 transition">گۆڕانکاری</button>
                     <h1 className="text-xl font-black">{displayName}</h1>
+                    {profile?.user_number && (
+                      <span className="text-xs font-bold text-slate-500 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full" dir="ltr">#{profile.user_number}</span>
+                    )}
                   </div>
                 )}
                 <p className="text-slate-500 text-sm mt-1">{user.email}</p>

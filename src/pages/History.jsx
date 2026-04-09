@@ -65,15 +65,25 @@ export default function History() {
               <h1 className="text-2xl font-black text-white">فایلەکانم</h1>
               <p className="text-slate-500 text-sm mt-1">{files.length} فایل</p>
             </div>
-            <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate('/create')}
-              className="flex items-center gap-2 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm"
-              style={{ background: 'linear-gradient(135deg, #eab308, #f97316)' }}
-            >
-              + دروستکردنی نوێ
-            </motion.button>
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 text-slate-300 font-bold px-5 py-2.5 rounded-xl text-sm border border-slate-700 hover:border-slate-500 transition"
+              >
+                → گەڕانەوە
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate('/services')}
+                className="flex items-center gap-2 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm"
+                style={{ background: 'linear-gradient(135deg, #eab308, #f97316)' }}
+              >
+                + دروستکردنی نوێ
+              </motion.button>
+            </div>
           </motion.div>
 
           {loading ? (

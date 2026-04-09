@@ -18,7 +18,7 @@ const POINT_PACKAGES = [
 ]
 
 export default function Admin() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('users')
   const [users, setUsers] = useState([])
@@ -41,6 +41,23 @@ export default function Admin() {
   const [orderMethod, setOrderMethod] = useState('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [userSortBy, setUserSortBy] = useState('tokens')
+  const [userJoinFrom, setUserJoinFrom] = useState('')
+  const [userJoinTo, setUserJoinTo] = useState('')
+  const [minGenerations, setMinGenerations] = useState('')
+  const [idFilter, setIdFilter] = useState('')
+  const [profileModal, setProfileModal] = useState(null)
+  const [profileOrders, setProfileOrders] = useState([])
+  const [profileOrdersLoading, setProfileOrdersLoading] = useState(false)
+
+  const openProfile = async (u) => {
+    setProfileModal(u)
+    setProfileOrders([])
+    setProfileOrdersLoading(true)
+    const { data } = await supabase.from('orders').select('*').eq('user_id', u.id).order('created_at', { ascending: false })
+    setProfileOrders(data || [])
+    setProfileOrdersLoading(false)
+  }
 
   const handleAddPoints = async () => {
     const amount = parseInt(pointsInput)
@@ -177,17 +194,37 @@ export default function Admin() {
       .catch(() => setLoading(false))
   }, [user])
 
-  const filteredUsers = users.filter(u => {
-    const q = search.toLowerCase()
-    const matchSearch = !q || u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
-    const matchPlan = planFilter === 'all' || u.plan === planFilter
-    return matchSearch && matchPlan
-  })
+  const filteredUsers = useMemo(() => {
+    let result = users.filter(u => {
+      const q = search.toLowerCase()
+      const matchSearch = !q || u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
+      const matchPlan = planFilter === 'all' || u.plan === planFilter
+      const matchJoinFrom = !userJoinFrom || new Date(u.created_at) >= new Date(userJoinFrom)
+      const matchJoinTo = !userJoinTo || new Date(u.created_at) <= new Date(userJoinTo + 'T23:59:59')
+      const matchMinGen = !minGenerations || (u.generations_used || 0) >= parseInt(minGenerations)
+      const matchId = !idFilter || String(u.user_number) === idFilter.trim()
+      return matchSearch && matchPlan && matchJoinFrom && matchJoinTo && matchMinGen && matchId
+    })
+    result = [...result].sort((a, b) => {
+      if (userSortBy === 'tokens') return (b.tokens_used || 0) - (a.tokens_used || 0)
+      if (userSortBy === 'generations') return (b.generations_used || 0) - (a.generations_used || 0)
+      if (userSortBy === 'points') return (b.points ?? 100) - (a.points ?? 100)
+      if (userSortBy === 'newest') return new Date(b.created_at) - new Date(a.created_at)
+      if (userSortBy === 'oldest') return new Date(a.created_at) - new Date(b.created_at)
+      return 0
+    })
+    return result
+  }, [users, search, planFilter, userSortBy, userJoinFrom, userJoinTo, minGenerations, idFilter])
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : '—'
   const formatTokens = (t) => t >= 1000 ? `${(t / 1000).toFixed(1)}k` : t
   const calcCost = (tokens) => `$${((tokens / 1_000_000) * 9).toFixed(4)}`
 
+  if (authLoading) return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+    </div>
+  )
   if (!user || user.email !== ADMIN_EMAIL) return null
 
   return (
@@ -214,6 +251,155 @@ export default function Admin() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {profileModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setProfileModal(null)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-800">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-yellow-400/20 rounded-full flex items-center justify-center text-yellow-400 text-2xl font-black">
+                  {(profileModal.full_name || profileModal.email)?.[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-white text-lg font-bold">{profileModal.full_name || '—'}</p>
+                  <p className="text-slate-400 text-sm" dir="ltr">{profileModal.email}</p>
+                  <p className="text-slate-600 text-xs font-mono" dir="ltr">#{profileModal.user_number} · {profileModal.id}</p>
+                </div>
+              </div>
+              <button onClick={() => setProfileModal(null)} className="text-slate-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 transition text-lg">✕</button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Plan + dates */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-800 rounded-xl p-4">
+                  <p className="text-slate-500 text-xs mb-1">پلان</p>
+                  <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${profileModal.plan === 'pro' ? 'bg-yellow-400/20 text-yellow-400' : 'bg-slate-700 text-slate-300'}`}>
+                    {profileModal.plan === 'pro' ? 'پرۆ' : 'بەخۆڕایی'}
+                  </span>
+                </div>
+                <div className="bg-slate-800 rounded-xl p-4">
+                  <p className="text-slate-500 text-xs mb-1">بەرواری خۆتۆمارکردن</p>
+                  <p className="text-white text-sm font-mono" dir="ltr">{formatDate(profileModal.created_at)}</p>
+                </div>
+                <div className="bg-slate-800 rounded-xl p-4">
+                  <p className="text-slate-500 text-xs mb-1">کاتی پرۆ</p>
+                  <p className="text-sm" dir="ltr">
+                    {profileModal.plan === 'pro' && profileModal.plan_expires_at
+                      ? <span className="text-yellow-400 font-mono">{formatExpiry(profileModal.plan_expires_at)}</span>
+                      : <span className="text-slate-600">—</span>}
+                  </p>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: 'دروستکردن', value: profileModal.generations_used || 0, color: 'text-blue-400' },
+                  { label: 'تۆکێن', value: formatTokens(profileModal.tokens_used || 0), color: 'text-purple-400' },
+                  { label: 'تێچوون', value: calcCost(profileModal.tokens_used || 0), color: 'text-green-400' },
+                  { label: 'خاڵ', value: profileModal.points ?? 100, color: 'text-yellow-400' },
+                ].map((s, i) => (
+                  <div key={i} className="bg-slate-800 rounded-xl p-4 text-center">
+                    <p className="text-slate-500 text-xs mb-1">{s.label}</p>
+                    <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Token usage bar */}
+              {stats.tokens > 0 && (
+                <div>
+                  <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                    <span>بەکارهێنانی تۆکێن لە کۆی گشتی</span>
+                    <span dir="ltr">{((profileModal.tokens_used / stats.tokens) * 100).toFixed(2)}%</span>
+                  </div>
+                  <div className="bg-slate-800 rounded-full h-2">
+                    <div className="h-2 rounded-full bg-purple-400 transition-all"
+                      style={{ width: `${Math.min((profileModal.tokens_used / stats.tokens) * 100, 100)}%` }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { togglePlan(profileModal); setProfileModal(null) }}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition ${
+                    profileModal.plan === 'pro'
+                      ? 'bg-slate-700 hover:bg-slate-600 text-white'
+                      : 'bg-yellow-400 hover:bg-yellow-300 text-black'
+                  }`}
+                >
+                  {profileModal.plan === 'pro' ? 'گەڕاندنەوەی بەخۆڕایی' : 'کردنی پرۆ'}
+                </button>
+                <button
+                  onClick={() => { setPointsModal(profileModal); setPointsMode('add'); setPointsInput(''); setProfileModal(null) }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-400 border border-yellow-400/30 transition"
+                >
+                  + خاڵ زیادکردن
+                </button>
+                <button
+                  onClick={() => { setPointsModal(profileModal); setPointsMode('subtract'); setPointsInput(''); setProfileModal(null) }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition"
+                >
+                  − خاڵ کەمکردن
+                </button>
+              </div>
+
+              {/* Order history */}
+              <div>
+                <p className="text-white font-bold text-sm mb-3">مێژووی داواکارییەکان</p>
+                {profileOrdersLoading ? (
+                  <div className="text-center py-6">
+                    <div className="w-6 h-6 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin mx-auto" />
+                  </div>
+                ) : profileOrders.length === 0 ? (
+                  <p className="text-slate-600 text-sm text-center py-6">هیچ داواکارییەک نییە</p>
+                ) : (
+                  <div className="bg-slate-800 rounded-xl overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-700">
+                          <th className="text-right text-slate-500 font-medium px-4 py-2.5">داواکاری</th>
+                          <th className="text-right text-slate-500 font-medium px-4 py-2.5">ڕێگا</th>
+                          <th className="text-right text-slate-500 font-medium px-4 py-2.5">بڕ</th>
+                          <th className="text-right text-slate-500 font-medium px-4 py-2.5">بارودۆخ</th>
+                          <th className="text-right text-slate-500 font-medium px-4 py-2.5">بەروار</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {profileOrders.map(o => (
+                          <tr key={o.id} className="border-b border-slate-700/50">
+                            <td className="px-4 py-2.5">
+                              {o.order_type === 'pro'
+                                ? <span className="text-yellow-400 font-bold">پلانی پرۆ</span>
+                                : <span className="text-blue-400 font-bold">{POINT_PACKAGES[o.package_index]?.points} خاڵ</span>}
+                            </td>
+                            <td className="px-4 py-2.5 text-slate-300">{o.payment_method?.toUpperCase()}</td>
+                            <td className="px-4 py-2.5 text-green-400 font-mono">{o.amount} د.ع</td>
+                            <td className="px-4 py-2.5">
+                              <span className={`px-2 py-0.5 rounded-full font-bold ${o.status === 'confirmed' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-400/20 text-yellow-400'}`}>
+                                {o.status === 'confirmed' ? 'دڵنیاکراوە' : 'چاوەڕێ'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-slate-500 font-mono" dir="ltr">{new Date(o.created_at).toLocaleDateString('en-GB')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
         </div>
       )}
       {confirm && (
@@ -281,23 +467,69 @@ export default function Admin() {
           </motion.div>
 
           {/* Search & Filter */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="flex gap-3 mb-4">
-            <input
-              type="text"
-              placeholder="گەڕان بە ناو یان ئیمەیڵ..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="flex-1 bg-slate-900 border border-slate-800 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 placeholder-slate-600"
-            />
-            <select
-              value={planFilter}
-              onChange={e => setPlanFilter(e.target.value)}
-              className="bg-slate-900 border border-slate-800 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-blue-500"
-            >
-              <option value="all">هەموو پلانەکان</option>
-              <option value="free">بەخۆڕایی</option>
-              <option value="pro">پرۆ</option>
-            </select>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="flex flex-col gap-3 mb-4">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="گەڕان بە ناو یان ئیمەیڵ..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="flex-1 bg-slate-900 border border-slate-800 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 placeholder-slate-600"
+              />
+              <select
+                value={planFilter}
+                onChange={e => setPlanFilter(e.target.value)}
+                className="bg-slate-900 border border-slate-800 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-blue-500"
+              >
+                <option value="all">هەموو پلانەکان</option>
+                <option value="free">بەخۆڕایی</option>
+                <option value="pro">پرۆ</option>
+              </select>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <input
+                type="number"
+                placeholder="گەڕان بە ID..."
+                value={idFilter}
+                onChange={e => setIdFilter(e.target.value)}
+                min={1}
+                className="w-36 bg-slate-900 border border-slate-800 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-yellow-500 placeholder-slate-600"
+              />
+              <select
+                value={userSortBy}
+                onChange={e => setUserSortBy(e.target.value)}
+                className="bg-slate-900 border border-slate-800 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-yellow-500"
+              >
+                <option value="tokens">ریزکردن: تۆکێن</option>
+                <option value="generations">ریزکردن: دروستکردن</option>
+                <option value="points">ریزکردن: خاڵ</option>
+                <option value="newest">ریزکردن: نوێترین</option>
+                <option value="oldest">ریزکردن: کۆنترین</option>
+              </select>
+              <input
+                type="number"
+                placeholder="کەمترین دروستکردن..."
+                value={minGenerations}
+                onChange={e => setMinGenerations(e.target.value)}
+                min={0}
+                className="w-44 bg-slate-900 border border-slate-800 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-yellow-500 placeholder-slate-600"
+              />
+              <input type="date" value={userJoinFrom} onChange={e => setUserJoinFrom(e.target.value)}
+                title="بەرواری پەیوەندیکردن لە"
+                className="bg-slate-900 border border-slate-800 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-yellow-500" />
+              <input type="date" value={userJoinTo} onChange={e => setUserJoinTo(e.target.value)}
+                title="بەرواری پەیوەندیکردن بۆ"
+                className="bg-slate-900 border border-slate-800 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-yellow-500" />
+              {(userSortBy !== 'tokens' || userJoinFrom || userJoinTo || minGenerations || idFilter) && (
+                <button
+                  onClick={() => { setUserSortBy('tokens'); setUserJoinFrom(''); setUserJoinTo(''); setMinGenerations(''); setIdFilter('') }}
+                  className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-2.5 rounded-xl transition"
+                >
+                  ڕیست
+                </button>
+              )}
+              <span className="text-slate-500 text-xs self-center mr-auto">{filteredUsers.length} بەکارهێنەر</span>
+            </div>
           </motion.div>
 
           {/* Table */}
@@ -309,7 +541,7 @@ export default function Admin() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-800">
-                    <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">#</th>
+                    <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">ID</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">بەکارهێنەر</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">ئیمەیڵ</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">پلان</th>
@@ -342,9 +574,10 @@ export default function Admin() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: i * 0.04 }}
-                      className="border-b border-slate-800/50 hover:bg-slate-800/30 transition"
+                      onClick={() => openProfile(u)}
+                      className="border-b border-slate-800/50 hover:bg-slate-800/30 transition cursor-pointer"
                     >
-                      <td className="px-5 py-3.5 text-slate-600 text-xs">{i + 1}</td>
+                      <td className="px-5 py-3.5 text-slate-600 text-xs">{u.user_number}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-7 bg-yellow-400/20 rounded-full flex items-center justify-center text-yellow-400 text-xs font-bold flex-shrink-0">
@@ -354,7 +587,7 @@ export default function Admin() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5 text-slate-400 text-xs" dir="ltr">{u.email}</td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => togglePlan(u)}
                           disabled={updating === u.id}
@@ -382,7 +615,7 @@ export default function Admin() {
                       <td className="px-5 py-3.5">
                         <span className="text-green-400 text-xs font-mono">{calcCost(u.tokens_used)}</span>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5">
                           <span className="text-yellow-400 text-xs font-bold">{u.points ?? 100}</span>
                           <button onClick={() => { setPointsModal(u); setPointsMode('add'); setPointsInput('') }} className="w-5 h-5 bg-yellow-400/20 hover:bg-yellow-400/40 text-yellow-400 rounded-full text-xs font-bold transition flex items-center justify-center">+</button>

@@ -142,7 +142,7 @@ export default function Services() {
                     whileHover={!locked ? { scale: 1.02 } : {}}
                     whileTap={!locked ? { scale: 0.98 } : {}}
                     onClick={() => !locked && setSelectedAI(m.id)}
-                    className={`relative flex flex-col items-center text-center gap-2 p-4 rounded-2xl border-2 transition ${
+                    className={`relative flex flex-col items-center text-center gap-2 p-6 rounded-2xl border-2 transition ${
                       active ? `${m.activeBorder} bg-white/5` : `${m.border} bg-slate-900/60`
                     } ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     style={active ? { boxShadow: `0 0 24px ${m.activeGlow}, 0 0 48px ${m.activeGlow}` } : {}}
