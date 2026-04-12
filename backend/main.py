@@ -74,6 +74,18 @@ def _addon_count(req) -> int:
         req.conclusion, req.addon_references,
     ])
 
+def _calc_xal(req) -> int:
+    cost = 25
+    s = req.slide_count
+    if s >= 6 and s <= 10: cost += 5
+    elif s == 15: cost += 8
+    elif s == 20: cost += 10
+    elif s == 25: cost += 12
+    elif s == 30: cost += 15
+    if req.detail_level == "Detailed": cost += 3
+    cost += _addon_count(req) * 0  # addons don't add cost in current formula
+    return int(cost)
+
 def smart_estimate(slide_count: int, detail_level: str, addon_count: int, is_pro: bool) -> int:
     """
     Smart time estimator. Pro uses claude-sonnet (slower, higher quality),
@@ -311,6 +323,8 @@ class GenerateRequest(BaseModel):
     addon_references: bool = False
     file_name: str = "raportakam"
     is_pro: bool = False
+    user_id: str = ""
+    plan: str = "free"
 
 
 def build_prompt(req: GenerateRequest) -> str:
@@ -501,6 +515,28 @@ async def generate_stream(req: GenerateRequest):
             actual_secs = time.time() - _gen_start
             record_generation(req.slide_count, req.detail_level, _addon_count(req), req.is_pro, actual_secs)
             download_url = f"/pptx/{file_id}"
+
+            # Record generation + deduct points server-side (service role bypasses RLS)
+            if req.user_id:
+                try:
+                    from supabase import create_client
+                    sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
+                    sb.table("generations").insert({
+                        "user_id": req.user_id,
+                        "prompt": req.topic,
+                        "output_type": "pptx",
+                        "status": "done",
+                        "file_name": req.file_name,
+                        "tokens_used": tokens_used,
+                        "file_url": download_url,
+                    }).execute()
+                    if req.plan != "pro":
+                        profile = sb.table("profiles").select("points").eq("id", req.user_id).single().execute()
+                        current_points = (profile.data or {}).get("points", 100)
+                        sb.table("profiles").update({"points": max(0, current_points - _calc_xal(req))}).eq("id", req.user_id).execute()
+                except Exception as db_err:
+                    print(f"[DB] Error recording generation: {db_err}")
+
             yield f"data: {json.dumps({'stage': 5, 'label': 'Ready!', 'url': download_url, 'file_id': file_id, 'tokens_used': tokens_used})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'stage': -1, 'error': str(e)})}\n\n"

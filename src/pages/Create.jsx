@@ -143,6 +143,8 @@ export default function Create() {
     addon_references: form.addonReferences,
     file_name: form.fileName,
     is_pro: useSonnet,
+    user_id: user?.id || '',
+    plan: profile?.plan || 'free',
   })
 
   const handleNext = () => {
@@ -152,28 +154,13 @@ export default function Create() {
   }
 
   const handleGenerationComplete = async (tokensUsed = 0, fileUrl = '') => {
-    if (!user) return
-    try {
-      await supabase.from('generations').insert({
-        user_id: user.id,
-        prompt: form.prompt,
-        output_type: form.type,
-        status: 'done',
-        file_name: form.fileName,
-        tokens_used: tokensUsed,
-        file_url: fileUrl,
-      })
-    } catch (e) {
-      console.error('[handleGenerationComplete] insert error:', e)
-    }
-    if (!isPro) {
+    // Backend handles DB insert + points deduction via service role key.
+    // Frontend just refreshes the points display.
+    if (!isPro && user) {
       try {
-        const newPoints = userPoints - xalNeeded
-        await supabase.from('profiles').update({ points: newPoints }).eq('id', user.id)
-        setProfile(p => ({ ...p, points: newPoints }))
-      } catch (e) {
-        console.error('[handleGenerationComplete] points update error:', e)
-      }
+        const { data } = await supabase.from('profiles').select('points').eq('id', user.id).single()
+        if (data) setProfile(p => ({ ...p, points: data.points }))
+      } catch (_) {}
     }
   }
 
