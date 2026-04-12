@@ -184,7 +184,8 @@ export default function Admin() {
         setUsers(data.users || [])
         const pro = (data.users || []).filter(u => u.plan === 'pro').length
         const tokens = (data.users || []).reduce((s, u) => s + u.tokens_used, 0)
-        setStats({ total: data.total, pro, tokens })
+        const cost = (data.users || []).reduce((s, u) => s + (u.cost_usd || 0), 0)
+        setStats({ total: data.total, pro, tokens, cost })
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -220,7 +221,7 @@ export default function Admin() {
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : '—'
   const formatTokens = (t) => t >= 1000 ? `${(t / 1000).toFixed(1)}k` : t
-  const calcCost = (tokens) => `$${((tokens / 1_000_000) * 9).toFixed(4)}`
+  const calcCost = (tokens, costUsd) => costUsd != null ? `$${Number(costUsd).toFixed(4)}` : `$${((tokens / 1_000_000) * 9).toFixed(4)}`
 
   if (authLoading) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -306,7 +307,7 @@ export default function Admin() {
                 {[
                   { label: 'دروستکردن', value: profileModal.generations_used || 0, color: 'text-blue-400' },
                   { label: 'تۆکێن', value: formatTokens(profileModal.tokens_used || 0), color: 'text-purple-400' },
-                  { label: 'تێچوون', value: calcCost(profileModal.tokens_used || 0), color: 'text-green-400' },
+                  { label: 'تێچوون', value: calcCost(profileModal.tokens_used || 0, profileModal.cost_usd), color: 'text-green-400' },
                   { label: 'خاڵ', value: profileModal.points ?? 100, color: 'text-yellow-400' },
                 ].map((s, i) => (
                   <div key={i} className="bg-slate-800 rounded-xl p-4 text-center">
@@ -468,7 +469,7 @@ export default function Admin() {
               { label: 'کۆی بەکارهێنەران', value: stats.total, color: 'text-white', bg: 'bg-slate-800' },
               { label: 'بەکارهێنەری پرۆ', value: stats.pro, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
               { label: 'کۆی تۆکێن', value: formatTokens(stats.tokens), color: 'text-purple-400', bg: 'bg-purple-400/10' },
-              { label: 'کۆی تێچوون', value: calcCost(stats.tokens), color: 'text-green-400', bg: 'bg-green-400/10' },
+              { label: 'کۆی تێچوون', value: calcCost(stats.tokens, stats.cost), color: 'text-green-400', bg: 'bg-green-400/10' },
             ].map((s, i) => (
               <div key={i} className={`${s.bg} border border-slate-800 rounded-2xl p-5`}>
                 <p className="text-slate-500 text-xs mb-1">{s.label}</p>
@@ -624,7 +625,7 @@ export default function Admin() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="text-green-400 text-xs font-mono">{calcCost(u.tokens_used)}</span>
+                        <span className="text-green-400 text-xs font-mono">{calcCost(u.tokens_used, u.cost_usd)}</span>
                       </td>
                       <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5">

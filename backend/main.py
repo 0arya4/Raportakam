@@ -74,6 +74,17 @@ def _addon_count(req) -> int:
         req.conclusion, req.addon_references,
     ])
 
+PRICING = {
+    "claude-haiku-4-5":          {"input": 0.80,  "output": 4.00},
+    "claude-haiku-4-5-20251001": {"input": 0.80,  "output": 4.00},
+    "claude-sonnet-4-6":         {"input": 3.00,  "output": 15.00},
+}
+
+def calc_cost_usd(model: str, inp: int, out: int) -> float:
+    p = PRICING.get(model, {"input": 3.00, "output": 15.00})
+    return round((inp * p["input"] + out * p["output"]) / 1_000_000, 6)
+
+
 def _calc_xal(req) -> int:
     cost = 25
     s = req.slide_count
@@ -173,6 +184,7 @@ async def admin_users(secret: str = ""):
         # gen_res.data = [{ user_id, total_tokens, total_gens }]
         token_map = {r["user_id"]: r["total_tokens"] for r in (gen_res.data or [])}
         gen_count_map = {r["user_id"]: r["total_gens"] for r in (gen_res.data or [])}
+        cost_map = {r["user_id"]: float(r.get("total_cost", 0) or 0) for r in (gen_res.data or [])}
 
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc)
@@ -195,6 +207,7 @@ async def admin_users(secret: str = ""):
                 "points": p.get("points", 100),
                 "generations_used": gen_count_map.get(uid, 0),
                 "tokens_used": token_map.get(uid, 0),
+                "cost_usd": cost_map.get(uid, 0.0),
                 "created_at": p.get("created_at", ""),
                 "user_number": p.get("user_number"),
             })
@@ -397,9 +410,12 @@ async def generate_stream(req: GenerateRequest):
         full_code = ""
         char_count = 0
         tokens_used = 0
+        input_tokens = 0
+        output_tokens = 0
+        _model_used, _ = pick_model_and_tokens(req.slide_count, req.is_pro, _addon_count(req))
         try:
             def run_claude():
-                nonlocal full_code, char_count, tokens_used
+                nonlocal full_code, char_count, tokens_used, input_tokens, output_tokens
                 _model, _tokens = pick_model_and_tokens(req.slide_count, req.is_pro, _addon_count(req))
                 with claude.messages.stream(
                     model=_model,
@@ -410,7 +426,9 @@ async def generate_stream(req: GenerateRequest):
                         full_code += text
                         char_count += len(text)
                     usage = stream.get_final_message().usage
-                    tokens_used = (usage.input_tokens or 0) + (usage.output_tokens or 0)
+                    input_tokens = usage.input_tokens or 0
+                    output_tokens = usage.output_tokens or 0
+                    tokens_used = input_tokens + output_tokens
             await asyncio.to_thread(run_claude)
             print(f"[Claude] chars={char_count} tokens={tokens_used} has_writefile={'pres.writeFile' in full_code} last50={repr(full_code[-50:])}")
         except Exception as e:
@@ -470,11 +488,11 @@ async def generate_stream(req: GenerateRequest):
                 return res, None
 
         async def generate_code():
-            nonlocal tokens_used
+            nonlocal tokens_used, input_tokens, output_tokens
             code = ""
             _model, _tokens = pick_model_and_tokens(req.slide_count, req.is_pro, _addon_count(req))
             def _call():
-                nonlocal code, tokens_used
+                nonlocal code, tokens_used, input_tokens, output_tokens
                 with claude.messages.stream(
                     model=_model,
                     max_tokens=_tokens,
@@ -483,6 +501,8 @@ async def generate_stream(req: GenerateRequest):
                     for text in stream.text_stream:
                         code += text
                     usage = stream.get_final_message().usage
+                    input_tokens += usage.input_tokens or 0
+                    output_tokens += usage.output_tokens or 0
                     tokens_used += (usage.input_tokens or 0) + (usage.output_tokens or 0)
             await asyncio.to_thread(_call)
             return _extract_code(code)
@@ -535,6 +555,7 @@ async def generate_stream(req: GenerateRequest):
                 try:
                     from supabase import create_client
                     sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
+                    cost_usd = calc_cost_usd(_model_used, input_tokens, output_tokens)
                     sb.table("generations").insert({
                         "user_id": req.user_id,
                         "prompt": req.topic,
@@ -542,6 +563,10 @@ async def generate_stream(req: GenerateRequest):
                         "status": "done",
                         "file_name": req.file_name,
                         "tokens_used": tokens_used,
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                        "model": _model_used,
+                        "cost_usd": cost_usd,
                         "file_url": download_url,
                     }).execute()
                     if req.plan != "pro":
