@@ -672,6 +672,7 @@ async def detect_ai(
     text: str = Form(None),
     file: UploadFile = File(None),
     use_sonnet: str = Form("0"),
+    user_id: str = Form(""),
 ):
     import base64, io
     model = "claude-sonnet-4-6" if use_sonnet == "1" else "claude-haiku-4-5-20251001"
@@ -731,4 +732,28 @@ async def detect_ai(
         raw = re.sub(r"\n?```$", "", raw)
     result = json.loads(raw)
     result["source_type"] = source_type
+
+    # Record usage to DB
+    if user_id:
+        try:
+            from supabase import create_client
+            sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
+            inp = response.usage.input_tokens or 0
+            out = response.usage.output_tokens or 0
+            cost_usd = calc_cost_usd(model, inp, out)
+            sb.table("generations").insert({
+                "user_id": user_id,
+                "prompt": (text or "")[:200] or (file.filename if file else "file"),
+                "output_type": "ai-detect",
+                "status": "done",
+                "file_name": file.filename if file else None,
+                "tokens_used": inp + out,
+                "input_tokens": inp,
+                "output_tokens": out,
+                "model": model,
+                "cost_usd": cost_usd,
+            }).execute()
+        except Exception as db_err:
+            print(f"[DB] ai-detect record error: {db_err}")
+
     return result

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/Navbar'
+import { useAuth } from '../context/AuthContext'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -53,6 +54,7 @@ const CONFIDENCE_KU = { High: 'بەرز', Medium: 'ناوەند', Low: 'کەم' 
 
 export default function AIDetect() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const useSonnet = searchParams.get('ai') === 'sonnet'
   const fileRef = useRef(null)
@@ -81,6 +83,7 @@ export default function AIDetect() {
       if (file) fd.append('file', file)
       else fd.append('text', text)
       fd.append('use_sonnet', useSonnet ? '1' : '0')
+      if (user?.id) fd.append('user_id', user.id)
 
       const res = await fetch(`${API_URL}/ai-detect`, { method: 'POST', body: fd })
       if (!res.ok) {
