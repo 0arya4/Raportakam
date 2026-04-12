@@ -151,16 +151,16 @@ async def admin_users(secret: str = ""):
         from supabase import create_client
         sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
 
-        profiles_res = sb.table("profiles").select("*").execute()
+        # Run both queries in parallel via threads
+        profiles_res, gen_res = await asyncio.gather(
+            asyncio.to_thread(lambda: sb.table("profiles").select("*").execute()),
+            asyncio.to_thread(lambda: sb.rpc("get_user_gen_stats", {}).execute()),
+        )
         profiles = {p["id"]: p for p in profiles_res.data}
 
-        gen_res = sb.table("generations").select("user_id, tokens_used").execute()
-        token_map = {}
-        gen_count_map = {}
-        for g in gen_res.data:
-            uid = g["user_id"]
-            token_map[uid] = token_map.get(uid, 0) + (g["tokens_used"] or 0)
-            gen_count_map[uid] = gen_count_map.get(uid, 0) + 1
+        # gen_res.data = [{ user_id, total_tokens, total_gens }]
+        token_map = {r["user_id"]: r["total_tokens"] for r in (gen_res.data or [])}
+        gen_count_map = {r["user_id"]: r["total_gens"] for r in (gen_res.data or [])}
 
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc)
@@ -442,10 +442,11 @@ async def generate_stream(req: GenerateRequest):
                 return res, None
 
         async def generate_code():
+            nonlocal tokens_used
             code = ""
             _model, _tokens = pick_model_and_tokens(req.slide_count, req.is_pro, _addon_count(req))
             def _call():
-                nonlocal code
+                nonlocal code, tokens_used
                 with claude.messages.stream(
                     model=_model,
                     max_tokens=_tokens,
@@ -453,6 +454,8 @@ async def generate_stream(req: GenerateRequest):
                 ) as stream:
                     for text in stream.text_stream:
                         code += text
+                    usage = stream.get_final_message().usage
+                    tokens_used += (usage.input_tokens or 0) + (usage.output_tokens or 0)
             await asyncio.to_thread(_call)
             return _extract_code(code)
 
