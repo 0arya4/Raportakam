@@ -34,7 +34,7 @@ export default function History() {
 
   const handleDelete = async (id) => {
     setDeleting(id)
-    await supabase.from('generations').delete().eq('id', id)
+    await fetch(`${API_URL}/generation/delete?generation_id=${id}&user_id=${user.id}`, { method: 'POST' })
     setFiles(f => f.filter(x => x.id !== id))
     setConfirmId(null)
     setDeleting(null)
@@ -46,6 +46,7 @@ export default function History() {
       .from('generations')
       .select('*')
       .eq('user_id', user.id)
+      .neq('deleted', true)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         setFiles(data || [])

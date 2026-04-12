@@ -222,6 +222,20 @@ async def set_plan(secret: str = "", user_id: str = "", plan: str = ""):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/generation/delete")
+async def delete_generation(generation_id: str = "", user_id: str = ""):
+    """Soft-delete a generation — keeps row for stats, hides from user history."""
+    if not generation_id or not user_id:
+        raise HTTPException(status_code=400, detail="Missing generation_id or user_id")
+    try:
+        from supabase import create_client
+        sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
+        sb.table("generations").update({"deleted": True}).eq("id", generation_id).eq("user_id", user_id).execute()
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/admin/add-points")
 async def add_points(secret: str = "", user_id: str = "", points: int = 0):
     if secret != os.getenv("ADMIN_SECRET", "raportakam-admin-2026"):

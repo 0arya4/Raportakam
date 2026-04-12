@@ -13,6 +13,7 @@ export default defineConfig({
       '/health': 'http://localhost:8000',
       '/admin': 'http://localhost:8000',
       '/ai-detect': 'http://localhost:8000',
+      '/generation': 'http://localhost:8000',
     }
   }
 })
