@@ -460,13 +460,14 @@ export default function Report() {
                   )}
 
                   {[
-                    { k: 'include_abstract',   label: 'خولاصە زیاد بکە' },
-                    { k: 'include_conclusion', label: 'دەرئەنجام زیاد بکە', free: true },
-                    { k: 'include_references', label: 'سەرچاوەکان زیاد بکە' },
+                    { k: 'include_abstract',   label: 'خولاصە زیاد بکە',   sub: 'Abstract' },
+                    { k: 'include_conclusion', label: 'دەرئەنجام زیاد بکە', sub: 'Conclusion', free: true },
+                    { k: 'include_references', label: 'سەرچاوەکان زیاد بکە', sub: 'References' },
                   ].map(o => (
                     <div key={o.k} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-slate-300 text-sm">{o.label}</span>
+                        {o.sub && <span className="text-slate-500 text-xs">({o.sub})</span>}
                         {form[o.k] && !o.free && (
                           <span className="text-xs font-bold text-orange-400 bg-orange-400/10 border border-orange-400/30 px-1.5 py-0.5 rounded-full">+٢ خاڵ</span>
                         )}
