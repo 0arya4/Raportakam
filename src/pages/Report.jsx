@@ -31,10 +31,10 @@ const CITATIONS = ['APA', 'Harvard', 'MLA', 'IEEE', 'Chicago', 'Google Scholar']
 const BASE_COST = 30
 
 const REPORT_STAGES = [
-  { id: 1, label: 'شیکردنەوەی بابەت...',   icon: '🔍' },
-  { id: 2, label: 'نووسینی ناوەڕۆک...',    icon: '✍️' },
-  { id: 3, label: 'ئامادەکردنی ڕاپۆرت...', icon: '📄' },
-  { id: 4, label: 'ئامادەیە!',              icon: '✅' },
+  { id: 1, label: 'شیکردنەوەی بابەت...',   icon: '○' },
+  { id: 2, label: 'نووسینی ناوەڕۆک...',    icon: '○' },
+  { id: 3, label: 'ئامادەکردنی ڕاپۆرت...', icon: '○' },
+  { id: 4, label: 'ئامادەیە!',              icon: '○' },
 ]
 
 export default function Report() {
@@ -517,7 +517,7 @@ export default function Report() {
                       initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                       className="flex items-start gap-2 px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700/50 text-slate-400 text-xs" dir="rtl"
                     >
-                      <span className="text-base mt-0.5">☁️</span>
+                      <span className="text-base mt-0.5 text-slate-400">!</span>
                       <span>
                         <span className="font-semibold" style={{ color: '#f97316', textShadow: '0 0 8px rgba(249,115,22,0.7)' }}>لە کاتی ئاسای زیاتری پێچوو</span><br />
                         <span className="text-slate-500">بەهۆی خاوی ئینتەرنێت یان زۆری وردەکاری لە ڕاپۆرتەکە</span>
@@ -543,7 +543,7 @@ export default function Report() {
                     >
                       <div className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-700 text-lg flex-shrink-0">
                         {isDone ? (
-                          <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}>✅</motion.span>
+                          <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-green-400 font-black text-base">✓</motion.span>
                         ) : isActive ? (
                           <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
                             className="w-5 h-5 border-2 border-yellow-400 border-t-transparent rounded-full" />
