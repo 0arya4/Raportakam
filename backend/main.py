@@ -895,11 +895,14 @@ async def report_stream(req: ReportRequest):
 
         threading.Thread(target=run_claude, daemon=True).start()
 
+        full_text_chunks = []
+
         while True:
             kind, data = await queue.get()
             if kind == "stage2":
                 yield f"data: {json.dumps({'stage': 2, 'label': 'نووسینی ناوەڕۆک...'})}\n\n"
             elif kind == "chunk":
+                full_text_chunks.append(data)
                 yield f"data: {json.dumps({'chunk': data})}\n\n"
             elif kind == "done":
                 yield f"data: {json.dumps({'stage': 3, 'label': 'ئامادەکردنی ڕاپۆرت...'})}\n\n"
@@ -909,17 +912,35 @@ async def report_stream(req: ReportRequest):
                     try:
                         from supabase import create_client
                         sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
+
+                        # Upload markdown to R2 so History page can re-download
+                        file_url = None
+                        try:
+                            full_text = "".join(full_text_chunks)
+                            r2_key = f"reports/{req.user_id}/{uuid.uuid4()}.md"
+                            r2.put_object(
+                                Bucket=BUCKET,
+                                Key=r2_key,
+                                Body=full_text.encode("utf-8"),
+                                ContentType="text/markdown; charset=utf-8",
+                            )
+                            file_url = f"{os.getenv('R2_ENDPOINT')}/{BUCKET}/{r2_key}"
+                        except Exception as r2_err:
+                            print(f"[R2] report upload error: {r2_err}")
+
                         sb.table("generations").insert({
                             "user_id": req.user_id,
                             "prompt": req.topic[:200],
                             "output_type": "report",
                             "status": "done",
                             "file_name": req.title or req.topic[:50],
+                            "file_url": file_url,
                             "tokens_used": tokens,
                             "input_tokens": inp_tok[0],
                             "output_tokens": out_tok[0],
                             "model": model,
                             "cost_usd": cost,
+                            "language": req.language,
                         }).execute()
                         if req.plan != "pro":
                             report_cost = (30

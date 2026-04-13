@@ -198,16 +198,24 @@ export default function Report() {
     }
   }
 
+  const triggerDownload = (url, filename) => {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   const handleDownloadWord = async () => {
     setDownloadingWord(true)
+    setError('')
     try {
       const blob = await generateWordDoc(streamedText, form.language)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${form.title || form.topic || 'report'}.docx`
-      a.click()
-      URL.revokeObjectURL(url)
+      triggerDownload(URL.createObjectURL(blob), `${form.title || form.topic || 'report'}.docx`)
+    } catch (e) {
+      setError('داگرتنی Word سەرکەوتوو نەبوو: ' + e.message)
     } finally {
       setDownloadingWord(false)
     }
@@ -215,9 +223,9 @@ export default function Report() {
 
   const handleDownloadPDF = async () => {
     setDownloadingPDF(true)
+    setError('')
     try {
       const el = document.getElementById('report-preview')
-      // Temporarily strip card styles so PDF looks clean
       el.style.borderRadius = '0'
       el.style.boxShadow = 'none'
 
@@ -236,20 +244,22 @@ export default function Report() {
       const pageH = pdf.internal.pageSize.getHeight()
       const imgW  = pageW
       const imgH  = (canvas.height / canvas.width) * pageW
+      const imgData = canvas.toDataURL('image/jpeg', 0.92)
 
-      // Slice tall canvas into A4 pages
       let yOffset = 0
       let heightLeft = imgH
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, yOffset, imgW, imgH)
+      pdf.addImage(imgData, 'JPEG', 0, yOffset, imgW, imgH)
       heightLeft -= pageH
       while (heightLeft > 0) {
         yOffset -= pageH
         pdf.addPage()
-        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, yOffset, imgW, imgH)
+        pdf.addImage(imgData, 'JPEG', 0, yOffset, imgW, imgH)
         heightLeft -= pageH
       }
 
       pdf.save(`${form.title || form.topic || 'report'}.pdf`)
+    } catch (e) {
+      setError('داگرتنی PDF سەرکەوتوو نەبوو: ' + e.message)
     } finally {
       setDownloadingPDF(false)
     }
