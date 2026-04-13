@@ -408,24 +408,29 @@ export default function Report() {
                   <div>
                     <label className="text-xs text-slate-400 block mb-2">زمان</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {LANGUAGES.map(l => (
-                        <button key={l.id} onClick={() => set('language', l.id)}
-                          className={`py-2.5 px-2 rounded-xl border text-xs font-bold transition ${
-                            form.language === l.id
-                              ? 'border-yellow-500/60 bg-yellow-500/10 text-yellow-400'
-                              : 'border-slate-700 bg-slate-800/60 text-slate-400 hover:border-slate-600'
-                          }`}>
-                          {l.label}
-                        </button>
-                      ))}
+                      {LANGUAGES.map(l => {
+                        const needsPro = l.id === 'Kurdish (Sorani)' || l.id === 'Arabic'
+                        const locked = needsPro && !isPro
+                        return (
+                          <button key={l.id}
+                            onClick={() => { if (!locked) set('language', l.id) }}
+                            className={`relative py-2.5 px-2 rounded-xl border text-xs font-bold transition ${
+                              locked
+                                ? 'border-slate-700 bg-slate-800/30 text-slate-600 cursor-not-allowed'
+                                : form.language === l.id
+                                  ? 'border-yellow-500/60 bg-yellow-500/10 text-yellow-400'
+                                  : 'border-slate-700 bg-slate-800/60 text-slate-400 hover:border-slate-600'
+                            }`}>
+                            {locked && (
+                              <span className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-slate-900 text-xs font-black px-1 rounded-full leading-4">👑</span>
+                            )}
+                            {l.label}
+                          </button>
+                        )
+                      })}
                     </div>
-                    {(form.language === 'Kurdish (Sorani)' || form.language === 'Arabic') && (
-                      <div className="mt-2 flex items-center gap-2 text-xs text-yellow-400 bg-yellow-400/5 border border-yellow-500/20 rounded-xl px-3 py-2">
-                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M13 2L4.09 12.26c-.34.43-.5.86-.5 1.26 0 .97.75 1.48 1.41 1.48H11v7l8.91-10.26c.34-.43.5-.86.5-1.26 0-.97-.75-1.48-1.41-1.48H13V2z"/>
-                        </svg>
-                        کوردی و عەرەبی بە Sonnet دروست دەکرێت بۆ کوالیتی باشتر
-                      </div>
+                    {!isPro && (
+                      <p className="text-xs text-slate-600 mt-2">👑 کوردی و عەرەبی تەنها بۆ بەکارهێنەری پڕۆ</p>
                     )}
                   </div>
                 </div>
