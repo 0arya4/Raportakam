@@ -1,5 +1,4 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } from 'docx'
-import nrtFontUrl from '../assets/fonts/nrt.ttf.ttf?url'
 
 const TEMPLATES = [
   {
@@ -82,13 +81,6 @@ export async function generateWordDoc(text, language) {
     : tpl.bodyFont
   const headFont = isRTL ? bodyFont : tpl.headFont
 
-  // Embed NRT Reg font so it works on every machine
-  let embeddedFonts = []
-  try {
-    const res = await fetch(nrtFontUrl)
-    const fontData = new Uint8Array(await res.arrayBuffer())
-    embeddedFonts = [{ name: NRT_FONT_NAME, data: fontData }]
-  } catch {}
 
   const align = (center) =>
     isRTL ? AlignmentType.RIGHT : (center ? AlignmentType.CENTER : AlignmentType.LEFT)
@@ -179,7 +171,6 @@ export async function generateWordDoc(text, language) {
 
   const m = inTw(tpl.marginIn)
   const doc = new Document({
-    fonts: embeddedFonts,
     sections: [{
       properties: {
         page: { margin: { top: inTw(1.0), bottom: inTw(1.0), left: m, right: m } },
