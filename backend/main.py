@@ -964,8 +964,22 @@ async def report_stream(req: ReportRequest):
                     full_text = re.sub(r'^```[a-z]*\n?', '', full_text)
                     full_text = re.sub(r'\n?```$', '', full_text).strip()
 
-                # Send cleaned JSON to frontend so it can parse it
-                yield f"data: {json.dumps({'final_json': full_text})}\n\n"
+                # Generate Word document from cleaned JSON
+                word_url = None
+                try:
+                    word_buffer = json_to_word(full_text)
+                    # Upload Word file to R2
+                    r2_key = f"reports/{req.user_id}/{uuid.uuid4()}.docx"
+                    r2.put_object(
+                        Bucket=BUCKET,
+                        Key=r2_key,
+                        Body=word_buffer.getvalue(),
+                        ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                    word_url = f"{os.getenv('R2_ENDPOINT')}/{BUCKET}/{r2_key}"
+                    print(f"[WORD] Generated Word file: {word_url}")
+                except Exception as word_err:
+                    print(f"[WORD] Generation error: {word_err}")
 
                 tokens = inp_tok[0] + out_tok[0]
                 cost = calc_cost_usd(model, inp_tok[0], out_tok[0])
@@ -974,18 +988,17 @@ async def report_stream(req: ReportRequest):
                         from supabase import create_client
                         sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
 
-                        # Upload markdown to R2 so History page can re-download
+                        # Upload JSON to R2 as backup
                         file_url = None
                         try:
-                            full_text = "".join(full_text_chunks)
-                            r2_key = f"reports/{req.user_id}/{uuid.uuid4()}.md"
+                            r2_key = f"reports/{req.user_id}/{uuid.uuid4()}.json"
                             r2.put_object(
                                 Bucket=BUCKET,
                                 Key=r2_key,
                                 Body=full_text.encode("utf-8"),
-                                ContentType="text/markdown; charset=utf-8",
+                                ContentType="application/json; charset=utf-8",
                             )
-                            file_url = f"{os.getenv('R2_ENDPOINT')}/{BUCKET}/{r2_key}"
+                            file_url = word_url or f"{os.getenv('R2_ENDPOINT')}/{BUCKET}/{r2_key}"
                         except Exception as r2_err:
                             print(f"[R2] report upload error: {r2_err}")
 
@@ -1020,7 +1033,7 @@ async def report_stream(req: ReportRequest):
                                 print(f"[POINTS] deduction error for user={req.user_id}: {points_err}")
                     except Exception as db_err:
                         print(f"[DB] report record error: {db_err}")
-                yield f"data: {json.dumps({'done': True, 'tokens': tokens})}\n\n"
+                yield f"data: {json.dumps({'url': word_url, 'tokens': tokens, 'done': True})}\n\n"
                 break
             elif kind == "error":
                 yield f"data: {json.dumps({'error': data})}\n\n"

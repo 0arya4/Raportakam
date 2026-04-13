@@ -196,18 +196,42 @@ export default function Report() {
               textRef.current = data.final_json
               setStreamedText(data.final_json)
             }
-            if (data.done) {
-              gotDone = true
-              clearInterval(timerRef.current)
-              clearTimeout(updateTimerRef.current)
-              setStreamedText(textRef.current)
+            // Handle download URL (report Word file)
+            if (data.url) {
+              const fullUrl = `${data.url}?name=${encodeURIComponent(form.title || form.topic || 'report')}`
               setCurrentStage(4)
               setState('done')
+              // Auto-download immediately
+              try {
+                const a = document.createElement('a')
+                a.href = fullUrl
+                a.download = `${(form.title || form.topic || 'report').replace(/\s+/g, '_')}.docx`
+                a.style.display = 'none'
+                document.body.appendChild(a)
+                a.click()
+                setTimeout(() => document.body.removeChild(a), 200)
+              } catch (_) {}
               if (user) {
                 const { data: p } = await supabase.from('profiles').select('points').eq('id', user.id).single()
                 if (p) setProfile(prev => ({ ...prev, points: p.points }))
               }
               setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+              gotDone = true
+            }
+            if (data.done) {
+              if (!gotDone) {
+                gotDone = true
+                clearInterval(timerRef.current)
+                clearTimeout(updateTimerRef.current)
+                setStreamedText(textRef.current)
+                setCurrentStage(4)
+                setState('done')
+                if (user) {
+                  const { data: p } = await supabase.from('profiles').select('points').eq('id', user.id).single()
+                  if (p) setProfile(prev => ({ ...prev, points: p.points }))
+                }
+                setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+              }
             }
           } catch {}
         }
@@ -675,21 +699,12 @@ export default function Report() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    ڕاپۆرتەکە ئامادەیە
+                    ڕاپۆرتەکە ئامادەیە و داگری کرایەوە
                   </span>
-                  <div className="flex items-center gap-2">
-                    <button onClick={handleDownloadWord} disabled={downloadingWord}
-                      className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold px-3 py-2 rounded-xl transition disabled:opacity-40">
-                      {downloadingWord
-                        ? <><svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>چاوەڕێ...</>
-                        : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Word</>
-                      }
-                    </button>
-                    <button onClick={() => { setState('form'); setStreamedText(''); setCurrentStage(0) }}
-                      className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition">
-                      نوێ
-                    </button>
-                  </div>
+                  <button onClick={() => { setState('form'); setStreamedText(''); setCurrentStage(0) }}
+                    className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition">
+                    نوێ
+                  </button>
                 </div>
 
 
