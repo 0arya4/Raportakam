@@ -1,6 +1,7 @@
 import {
   Document, Packer, Paragraph, TextRun,
   AlignmentType, BorderStyle, Header, Footer, PageNumber,
+  Table, TableRow, TableCell, WidthType, ShadingType,
 } from 'docx'
 
 // ── Color palette ──────────────────────────────────────────────────────────
@@ -68,6 +69,52 @@ export async function generateWordDoc(text, language) {
         : run(p)
     )
 
+  // ── Build a Word table from collected markdown table lines ─────────────
+  const buildTable = (tableLines) => {
+    // split each line into cells, strip leading/trailing |
+    const rows = tableLines
+      .filter(l => !/^\|[\s|:-]+\|$/.test(l.trim())) // skip separator rows
+      .map(l => l.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()))
+
+    if (rows.length === 0) return null
+    const headers = rows[0]
+    const dataRows = rows.slice(1)
+
+    const cellPara = (text, bold, color, bg) => new TableCell({
+      shading: bg ? { fill: bg, type: ShadingType.CLEAR, color: 'auto' } : undefined,
+      margins: { top: tw(3), bottom: tw(3), left: tw(5), right: tw(5) },
+      children: [new Paragraph({
+        alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT,
+        bidirectional: isRTL,
+        children: [new TextRun({
+          text,
+          bold,
+          color,
+          size: hp(11),
+          font: { name: bodyFont, cs: bodyFont },
+          rightToLeft: isRTL,
+        })],
+      })],
+    })
+
+    return new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        // Header row — dark blue background, white bold text
+        new TableRow({
+          tableHeader: true,
+          children: headers.map(h => cellPara(h, true, 'FFFFFF', DARK_BLUE)),
+        }),
+        // Data rows — alternating light gray
+        ...dataRows.map((cells, i) =>
+          new TableRow({
+            children: cells.map(c => cellPara(c, false, BLACK, i % 2 === 1 ? 'F2F2F2' : 'FFFFFF')),
+          })
+        ),
+      ],
+    })
+  }
+
   // ══════════════════════════════════════════════════════════════════════
   //  SECTION 1 — Cover page
   // ══════════════════════════════════════════════════════════════════════
@@ -115,9 +162,29 @@ export async function generateWordDoc(text, language) {
   // ══════════════════════════════════════════════════════════════════════
   const bodyChildren = []
   let inBody = false
+  let tableBuffer = []
+
+  const flushTable = () => {
+    if (tableBuffer.length < 2) { tableBuffer = []; return }
+    const tbl = buildTable(tableBuffer)
+    if (tbl) {
+      bodyChildren.push(tbl)
+      bodyChildren.push(new Paragraph({ spacing: { after: tw(8) } }))
+    }
+    tableBuffer = []
+  }
 
   for (const raw of lines) {
     const line = raw.trim()
+
+    // Collect markdown table lines
+    if (line.startsWith('|')) {
+      if (inBody) tableBuffer.push(line)
+      continue
+    }
+
+    // Flush any buffered table before processing next non-table line
+    if (tableBuffer.length > 0) flushTable()
 
     if (line.startsWith('# ')) continue   // cover-only
 
@@ -154,12 +221,14 @@ export async function generateWordDoc(text, language) {
     } else if (inBody) {
       bodyChildren.push(new Paragraph({
         alignment:   bodyAlign,
-        spacing:     { after: tw(6), line: 360, lineRule: 'auto' }, // 1.5× spacing
+        spacing:     { after: tw(6), line: 360, lineRule: 'auto' },
         bidirectional: isRTL,
         children:    bodyRuns(line),
       }))
     }
   }
+  // Flush any trailing table
+  if (tableBuffer.length > 0) flushTable()
 
   // ── Running header ─────────────────────────────────────────────────────
   const pageHeader = new Header({

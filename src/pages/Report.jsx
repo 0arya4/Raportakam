@@ -673,14 +673,52 @@ export default function Report() {
                 {/* Report content — this div is captured for PDF */}
                 <div id="report-preview" className="bg-white rounded-2xl p-8 shadow-2xl" dir={isRTL ? 'rtl' : 'ltr'}>
                   <div className={`text-slate-800 text-sm leading-relaxed font-serif space-y-3 ${isRTL ? 'text-right' : ''}`}>
-                    {streamedText.split('\n').map((line, i) => {
-                      if (line.startsWith('# '))  return <h1 key={i} className="text-2xl font-black text-slate-900 border-b border-slate-200 pb-2 mt-6 mb-3">{line.slice(2)}</h1>
-                      if (line.startsWith('## ')) return <h2 key={i} className="text-lg font-bold text-slate-800 mt-5 mb-2">{line.slice(3)}</h2>
-                      if (line.startsWith('### ')) return <h3 key={i} className="text-base font-semibold text-slate-700 mt-4 mb-1">{line.slice(4)}</h3>
-                      if (line.startsWith('**') && line.endsWith('**')) return <p key={i} className="font-bold text-slate-800">{line.slice(2,-2)}</p>
-                      if (line.trim() === '' || line.trim() === '---') return <div key={i} className="h-2" />
-                      return <p key={i} className="text-slate-700 leading-7">{line}</p>
-                    })}
+                    {(() => {
+                      const lines = streamedText.split('\n')
+                      const out = []
+                      let i = 0
+                      while (i < lines.length) {
+                        const line = lines[i]
+                        // Collect markdown table block
+                        if (line.trim().startsWith('|')) {
+                          const tableLines = []
+                          while (i < lines.length && lines[i].trim().startsWith('|')) {
+                            tableLines.push(lines[i])
+                            i++
+                          }
+                          const rows = tableLines
+                            .filter(l => !/^\|[\s|:-]+\|$/.test(l.trim()))
+                            .map(l => l.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()))
+                          if (rows.length > 0) {
+                            out.push(
+                              <div key={`tbl-${i}`} className="overflow-x-auto my-4">
+                                <table className="w-full border-collapse text-xs">
+                                  <thead>
+                                    <tr>{rows[0].map((h, j) => <th key={j} className="bg-slate-800 text-white font-bold px-3 py-2 text-left border border-slate-600">{h}</th>)}</tr>
+                                  </thead>
+                                  <tbody>
+                                    {rows.slice(1).map((row, ri) => (
+                                      <tr key={ri} className={ri % 2 === 1 ? 'bg-slate-50' : ''}>
+                                        {row.map((c, j) => <td key={j} className="px-3 py-1.5 border border-slate-200 text-slate-700">{c}</td>)}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )
+                          }
+                          continue
+                        }
+                        if (line.startsWith('# '))  out.push(<h1 key={i} className="text-2xl font-black text-slate-900 border-b border-slate-200 pb-2 mt-6 mb-3">{line.slice(2)}</h1>)
+                        else if (line.startsWith('## ')) out.push(<h2 key={i} className="text-lg font-bold text-slate-800 mt-5 mb-2">{line.slice(3)}</h2>)
+                        else if (line.startsWith('### ')) out.push(<h3 key={i} className="text-base font-semibold text-slate-700 mt-4 mb-1">{line.slice(4)}</h3>)
+                        else if (line.startsWith('**') && line.endsWith('**')) out.push(<p key={i} className="font-bold text-slate-800">{line.slice(2,-2)}</p>)
+                        else if (line.trim() === '' || line.trim() === '---') out.push(<div key={i} className="h-2" />)
+                        else out.push(<p key={i} className="text-slate-700 leading-7">{line}</p>)
+                        i++
+                      }
+                      return out
+                    })()}
                   </div>
                 </div>
 

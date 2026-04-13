@@ -795,7 +795,17 @@ LENGTH TARGETS (word count for body text, excluding cover):
 
 CITATION RULES:
 - Basic research level: NO citations, no reference list
-- Medium/Advanced: realistic in-text citations + properly formatted reference list"""
+- Medium/Advanced: realistic in-text citations + properly formatted reference list
+
+TABLES:
+- When presenting comparative data, statistics, timelines, or structured information use a markdown table
+- Format: | Header 1 | Header 2 | Header 3 |
+          |----------|----------|----------|
+          | Data     | Data     | Data     |
+- Use tables for: comparisons, survey results, statistics, year-by-year data, pros/cons, feature lists
+- Keep tables concise — 3 to 6 columns maximum
+- Always include a bold header row
+- Place the table after a short introductory sentence explaining it"""
 
 
 class ReportRequest(BaseModel):
