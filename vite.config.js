@@ -14,9 +14,19 @@ export default defineConfig({
       '/admin': 'http://localhost:8000',
       '/ai-detect': 'http://localhost:8000',
       '/generation': 'http://localhost:8000',
-      '/report/stream': 'http://localhost:8000',
-      '/report/download': 'http://localhost:8000',
-      '/report/estimate': 'http://localhost:8000',
+      '/report': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        // Prevent proxy from timing out or buffering SSE connections
+        proxyTimeout: 300000,
+        timeout: 300000,
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            proxyRes.headers['x-accel-buffering'] = 'no'
+            proxyRes.headers['cache-control'] = 'no-cache'
+          })
+        },
+      },
     }
   }
 })
