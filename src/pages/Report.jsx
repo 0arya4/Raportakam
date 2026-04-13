@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
+import { generateWordDoc } from '../utils/generateWord'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -50,7 +53,8 @@ export default function Report() {
   const [error, setError] = useState('')
   const [elapsed, setElapsed] = useState(0)
   const [estimate, setEstimate] = useState(null)
-  const [downloading, setDownloading] = useState(false)
+  const [downloadingPDF, setDownloadingPDF] = useState(false)
+  const [downloadingWord, setDownloadingWord] = useState(false)
   const [currentStage, setCurrentStage] = useState(0)
 
   const [form, setForm] = useState({
@@ -195,14 +199,9 @@ export default function Report() {
   }
 
   const handleDownloadWord = async () => {
-    setDownloading(true)
+    setDownloadingWord(true)
     try {
-      const fd = new FormData()
-      fd.append('text', streamedText)
-      fd.append('filename', form.title || form.topic || 'report')
-      fd.append('language', form.language)
-      const res = await fetch(`${API_URL}/report/download/word`, { method: 'POST', body: fd })
-      const blob = await res.blob()
+      const blob = await generateWordDoc(streamedText, form.language)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -210,14 +209,53 @@ export default function Report() {
       a.click()
       URL.revokeObjectURL(url)
     } finally {
-      setDownloading(false)
+      setDownloadingWord(false)
     }
   }
 
-  const handleDownloadPDF = () => {
-    window.print()
+  const handleDownloadPDF = async () => {
+    setDownloadingPDF(true)
+    try {
+      const el = document.getElementById('report-preview')
+      // Temporarily strip card styles so PDF looks clean
+      el.style.borderRadius = '0'
+      el.style.boxShadow = 'none'
+
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      })
+
+      el.style.borderRadius = ''
+      el.style.boxShadow = ''
+
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pageW = pdf.internal.pageSize.getWidth()
+      const pageH = pdf.internal.pageSize.getHeight()
+      const imgW  = pageW
+      const imgH  = (canvas.height / canvas.width) * pageW
+
+      // Slice tall canvas into A4 pages
+      let yOffset = 0
+      let heightLeft = imgH
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, yOffset, imgW, imgH)
+      heightLeft -= pageH
+      while (heightLeft > 0) {
+        yOffset -= pageH
+        pdf.addPage()
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, yOffset, imgW, imgH)
+        heightLeft -= pageH
+      }
+
+      pdf.save(`${form.title || form.topic || 'report'}.pdf`)
+    } finally {
+      setDownloadingPDF(false)
+    }
   }
 
+  const isRTL = form.language === 'Kurdish (Sorani)' || form.language === 'Arabic'
   const isPro = profile?.plan === 'pro'
   const points = profile?.points ?? 100
   const totalCost = BASE_COST
@@ -231,21 +269,6 @@ export default function Report() {
   return (
     <>
       <Navbar />
-      {/* Print styles */}
-      <style>{`
-        @media print {
-          body > * { display: none !important; }
-          #report-print-area { display: block !important; }
-          #report-print-area { position: fixed; top: 0; left: 0; width: 100%; background: white; color: black; padding: 40px; font-family: serif; font-size: 12pt; line-height: 1.8; direction: ltr; }
-        }
-        #report-print-area { display: none; }
-      `}</style>
-
-      {/* Hidden print area */}
-      <div id="report-print-area">
-        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'serif' }}>{streamedText}</pre>
-      </div>
-
       <div className="min-h-screen bg-slate-950 pt-24 pb-20 px-4">
         <div className="max-w-2xl mx-auto">
 
@@ -593,8 +616,8 @@ export default function Report() {
 
                 {/* Streaming text preview */}
                 {streamedText && (
-                  <div className="bg-white rounded-2xl p-6 shadow-xl max-h-[400px] overflow-y-auto" dir="ltr">
-                    <div className="text-slate-800 text-sm leading-relaxed font-serif space-y-2">
+                  <div className="bg-white rounded-2xl p-6 shadow-xl max-h-[400px] overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
+                    <div className={`text-slate-800 text-sm leading-relaxed font-serif space-y-2 ${isRTL ? 'text-right' : ''}`}>
                       {streamedText.split('\n').map((line, i) => {
                         if (line.startsWith('# '))  return <h1 key={i} className="text-xl font-black text-slate-900 border-b border-slate-200 pb-1 mt-4 mb-2">{line.slice(2)}</h1>
                         if (line.startsWith('## ')) return <h2 key={i} className="text-base font-bold text-slate-800 mt-3 mb-1">{line.slice(3)}</h2>
@@ -623,17 +646,17 @@ export default function Report() {
                     ڕاپۆرتەکە ئامادەیە
                   </span>
                   <div className="flex items-center gap-2">
-                    <button onClick={handleDownloadPDF}
-                      className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold px-3 py-2 rounded-xl transition">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
-                      PDF
+                    <button onClick={handleDownloadPDF} disabled={downloadingPDF}
+                      className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold px-3 py-2 rounded-xl transition disabled:opacity-40">
+                      {downloadingPDF
+                        ? <><svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>چاوەڕێ...</>
+                        : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>PDF</>
+                      }
                     </button>
-                    <button onClick={handleDownloadWord} disabled={downloading}
+                    <button onClick={handleDownloadWord} disabled={downloadingWord}
                       className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold px-3 py-2 rounded-xl transition disabled:opacity-40">
-                      {downloading
-                        ? <span className="flex items-center gap-1"><svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>چاوەڕێ...</span>
+                      {downloadingWord
+                        ? <><svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>چاوەڕێ...</>
                         : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Word</>
                       }
                     </button>
@@ -644,9 +667,9 @@ export default function Report() {
                   </div>
                 </div>
 
-                {/* Report content */}
-                <div className="bg-white rounded-2xl p-8 shadow-2xl" dir="ltr">
-                  <div className="text-slate-800 text-sm leading-relaxed font-serif space-y-3">
+                {/* Report content — this div is captured for PDF */}
+                <div id="report-preview" className="bg-white rounded-2xl p-8 shadow-2xl" dir={isRTL ? 'rtl' : 'ltr'}>
+                  <div className={`text-slate-800 text-sm leading-relaxed font-serif space-y-3 ${isRTL ? 'text-right' : ''}`}>
                     {streamedText.split('\n').map((line, i) => {
                       if (line.startsWith('# '))  return <h1 key={i} className="text-2xl font-black text-slate-900 border-b border-slate-200 pb-2 mt-6 mb-3">{line.slice(2)}</h1>
                       if (line.startsWith('## ')) return <h2 key={i} className="text-lg font-bold text-slate-800 mt-5 mb-2">{line.slice(3)}</h2>

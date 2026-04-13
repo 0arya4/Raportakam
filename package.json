@@ -16,6 +16,7 @@
   "type": "module",
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",
+    "docx": "^9.6.1",
     "framer-motion": "^12.38.0",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
