@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
+const AI_DETECT_COST = 15
 
 const VERDICT_COLOR = (pct) => {
   if (pct <= 20) return { stroke: '#22c55e', text: 'text-green-400', bg: 'bg-green-400/10 border-green-500/30' }
@@ -63,6 +65,14 @@ export default function AIDetect() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
+  const [profile, setProfile] = useState(null)
+
+  useEffect(() => {
+    if (!user?.id) return
+    supabase.from('profiles').select('plan,points').eq('id', user.id).single()
+      .then(({ data }) => setProfile(data || {}))
+      .catch(() => setProfile({}))
+  }, [user?.id])
 
   const handleFile = (e) => {
     const f = e.target.files?.[0]
@@ -75,6 +85,12 @@ export default function AIDetect() {
 
   const handleDetect = async () => {
     if (!text.trim() && !file) { setError('تێکستێک بنووسە یان فایلێک بخه'); return }
+    const points = profile?.points ?? 100
+    const isPro = profile?.plan === 'pro'
+    if (!isPro && points < AI_DETECT_COST) {
+      setError(`خاڵی تە پێویست نییە (${AI_DETECT_COST} خاڵ پێویستە)`)
+      return
+    }
     setLoading(true)
     setResult(null)
     setError('')
@@ -99,7 +115,17 @@ export default function AIDetect() {
     }
   }
 
-  const reset = () => { setResult(null); setText(''); setFile(null); setError('') }
+  const reset = async () => {
+    setResult(null)
+    setText('')
+    setFile(null)
+    setError('')
+    // Refresh points after detection
+    if (user?.id) {
+      const { data } = await supabase.from('profiles').select('points').eq('id', user.id).single()
+      if (data) setProfile(prev => ({ ...prev, points: data.points }))
+    }
+  }
 
   const color = result ? VERDICT_COLOR(result.ai_percentage) : null
 
@@ -118,8 +144,16 @@ export default function AIDetect() {
             </div>
             <h1 className="text-3xl font-black text-white mb-2">دەستنووس یان AI؟</h1>
             <p className="text-slate-400 text-sm mb-4">بزانە نووسینەکەت دەرەکەوێ کە زیرەکی دەستکردە؟ AI Detection</p>
-            <div className="flex justify-center">
-              <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">نرخ: 15 XAL</span>
+            <div className="flex flex-col items-center gap-3">
+              {profile && profile.plan !== 'pro' && (
+                <div className="inline-flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2">
+                  <span className="text-slate-400 text-xs">خاڵەکانت:</span>
+                  <span className={`text-sm font-black ${(profile?.points ?? 100) < AI_DETECT_COST ? 'text-red-400' : 'text-white'}`}>{profile?.points ?? 100}</span>
+                  <div className="w-px h-4 bg-slate-700" />
+                  <span className="text-slate-400 text-xs">تێچوو:</span>
+                  <span className="text-yellow-400 text-sm font-black">{AI_DETECT_COST} خاڵ</span>
+                </div>
+              )}
             </div>
           </motion.div>
 
@@ -170,22 +204,29 @@ export default function AIDetect() {
 
                 {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
-                <button
-                  onClick={handleDetect}
-                  disabled={loading || (!text.trim() && !file)}
-                  className="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ background: 'linear-gradient(135deg, #a855f7, #7c3aed)' }}
-                >
-                  {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                      </svg>
-                      چاوەڕێ بکە...
-                    </span>
-                  ) : 'دەستپێکردن (15 XAL)'}
-                </button>
+                {(() => {
+                  const points = profile?.points ?? 100
+                  const isPro = profile?.plan === 'pro'
+                  const hasEnoughPoints = isPro || points >= AI_DETECT_COST
+                  return (
+                    <button
+                      onClick={handleDetect}
+                      disabled={loading || (!text.trim() && !file) || !hasEnoughPoints}
+                      className="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ background: 'linear-gradient(135deg, #a855f7, #7c3aed)' }}
+                    >
+                      {loading ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                          </svg>
+                          چاوەڕێ بکە...
+                        </span>
+                      ) : !hasEnoughPoints ? `خاڵی تە پێویست نییە (${AI_DETECT_COST} خاڵ پێویستە)` : 'دەستپێکردن'}
+                    </button>
+                  )
+                })()}
               </motion.div>
             ) : (
               <motion.div key="result" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
@@ -254,7 +295,7 @@ export default function AIDetect() {
 
                 <button onClick={reset}
                   className="w-full py-3 rounded-xl font-bold text-sm border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white transition hover:bg-white/5">
-                  دووبارە هەمەنگین
+                  دووبارەکردنەوە
                 </button>
               </motion.div>
             )}

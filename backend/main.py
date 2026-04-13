@@ -19,6 +19,7 @@ import anthropic
 from system_prompt import SYSTEM_PROMPT
 from pptx import Presentation
 from pptx.enum.text import MSO_AUTO_SIZE
+from json_to_word import json_to_word
 
 _ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 load_dotenv(dotenv_path=_ENV_PATH, override=True)
@@ -182,9 +183,11 @@ async def admin_users(secret: str = ""):
         )
         profiles = {p["id"]: p for p in profiles_res.data}
 
-        # gen_res.data = [{ user_id, total_tokens, total_gens }]
+        # gen_res.data = [{ user_id, total_tokens, total_gens, ai_detect_gens, other_gens, total_cost }]
         token_map = {r["user_id"]: r["total_tokens"] for r in (gen_res.data or [])}
         gen_count_map = {r["user_id"]: r["total_gens"] for r in (gen_res.data or [])}
+        ai_detect_map = {r["user_id"]: r.get("ai_detect_gens", 0) for r in (gen_res.data or [])}
+        other_gen_map = {r["user_id"]: r.get("other_gens", 0) for r in (gen_res.data or [])}
         cost_map = {r["user_id"]: float(r.get("total_cost", 0) or 0) for r in (gen_res.data or [])}
 
         from datetime import datetime, timezone
@@ -206,7 +209,8 @@ async def admin_users(secret: str = ""):
                 "plan": plan,
                 "plan_expires_at": expires_at,
                 "points": p.get("points", 100),
-                "generations_used": gen_count_map.get(uid, 0),
+                "generations_used": other_gen_map.get(uid, 0),
+                "ai_detect_used": ai_detect_map.get(uid, 0),
                 "tokens_used": token_map.get(uid, 0),
                 "cost_usd": cost_map.get(uid, 0.0),
                 "created_at": p.get("created_at", ""),
@@ -857,26 +861,34 @@ class ReportRequest(BaseModel):
 
 
 def build_report_prompt(req: ReportRequest) -> str:
-    lines = ["Write a complete academic report with the following specifications:\n"]
-    lines.append(f"Topic: {req.topic}")
-    if req.title:        lines.append(f"Title: {req.title}")
-    if req.student_name: lines.append(f"Student Name: {req.student_name}")
-    if req.course:       lines.append(f"University/Course: {req.course}")
-    if req.instructor:   lines.append(f"Instructor: {req.instructor}")
-    if req.date:         lines.append(f"Date: {req.date}")
-    if req.purpose:      lines.append(f"Purpose: {req.purpose}")
-    if req.points:       lines.append(f"Key Points/Sections:\n{req.points}")
-    lines.append(f"\nLength: {req.length}")
-    lines.append(f"Writing Style: {req.style}")
-    lines.append(f"Research Level: {req.research_level}")
-    if req.research_level != "Basic" and req.citation_styles:
-        lines.append(f"Citation Style: {', '.join(req.citation_styles)}")
-    lines.append(f"Include Abstract: {'Yes' if req.include_abstract else 'No'}")
-    lines.append(f"Include Conclusion: {'Yes' if req.include_conclusion else 'No'}")
-    lines.append(f"Include References: {'Yes' if req.include_references else 'No'}")
-    lines.append(f"Language: {req.language}")
-    lines.append("\nGenerate the complete report now.")
-    return "\n".join(lines)
+    """Build JSON-structured user message for report generation"""
+    user_msg = f"""Generate a structured academic report in JSON format.
+
+Topic: {req.topic or 'Academic Topic'}
+Title: {req.title or 'Academic Report'}
+Student: {req.student_name or 'Not Provided'}
+University: {req.course or 'Not Provided'}
+Instructor: {req.instructor or 'Not Provided'}
+Date: {req.date or 'Not Provided'}
+
+Objective: {req.purpose or 'To analyze and examine the topic comprehensively'}
+Sections: {req.points or 'General analysis and discussion'}
+Length: {req.length or 'Medium'}
+Style: {req.style or 'Formal Academic'}
+Level: {req.research_level or 'Medium'}
+Language: {req.language or 'English'}
+
+Citation Style: {', '.join(req.citation_styles) if req.citation_styles else 'APA'}
+Include Abstract: {'Yes' if req.include_abstract else 'No'}
+Include Conclusion: {'Yes' if req.include_conclusion else 'No'}
+Include References: {'Yes' if req.include_references else 'No'}
+
+Return ONLY valid JSON in the exact structure specified. Include ALL required fields.
+Generate realistic data for all tables, charts, and structures.
+Use [Heading 1], [Heading 2], [Heading 3] format for section headings.
+No explanations, no extra text - ONLY JSON.
+"""
+    return user_msg
 
 
 def estimate_report_seconds(length: str, is_pro: bool) -> int:
@@ -914,8 +926,8 @@ async def report_stream(req: ReportRequest):
                 with claude.messages.stream(
                     model=model,
                     max_tokens=max_tokens,
-                    temperature=0.3,
-                    system=REPORT_SYSTEM,
+                    temperature=0.7,
+                    system=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": prompt}]
                 ) as stream:
                     for text in stream.text_stream:
@@ -943,6 +955,18 @@ async def report_stream(req: ReportRequest):
                 yield f"data: {json.dumps({'chunk': data})}\n\n"
             elif kind == "done":
                 yield f"data: {json.dumps({'stage': 3, 'label': 'ئامادەکردنی ڕاپۆرت...'})}\n\n"
+
+                # Clean full_text: strip markdown code blocks
+                full_text = "".join(full_text_chunks)
+                full_text = full_text.strip()
+                # Remove markdown code block wrapper if present
+                if full_text.startswith('```'):
+                    full_text = re.sub(r'^```[a-z]*\n?', '', full_text)
+                    full_text = re.sub(r'\n?```$', '', full_text).strip()
+
+                # Send cleaned JSON to frontend so it can parse it
+                yield f"data: {json.dumps({'final_json': full_text})}\n\n"
+
                 tokens = inp_tok[0] + out_tok[0]
                 cost = calc_cost_usd(model, inp_tok[0], out_tok[0])
                 if req.user_id:
@@ -1083,6 +1107,11 @@ async def report_download_word(
     text: str = Form(...),
     filename: str = Form("report"),
     language: str = Form("English"),
+    title: str = Form(""),
+    student_name: str = Form(""),
+    instructor: str = Form(""),
+    course: str = Form(""),
+    date_str: str = Form(""),
 ):
     import io
     from docx import Document
@@ -1090,6 +1119,7 @@ async def report_download_word(
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
+    from datetime import datetime
 
     is_rtl = any(lang in language.lower() for lang in ["kurdish", "arabic", "sorani", "persian", "فارسی", "عربی", "کوردی"])
     tpl = _random.choice(WORD_TEMPLATES)
@@ -1097,14 +1127,160 @@ async def report_download_word(
     head_font  = body_font if is_rtl else tpl["heading_font"]
 
     doc = Document()
-    m = Inches(tpl["margin_in"])
+
+    # PROFESSIONAL FORMATTING - Standard 1 inch margins
     for sec in doc.sections:
         sec.top_margin    = Inches(1.0)
         sec.bottom_margin = Inches(1.0)
-        sec.left_margin   = m
-        sec.right_margin  = m
+        sec.left_margin   = Inches(1.0)
+        sec.right_margin  = Inches(1.0)
+
+    # ═══════════════════════════════════════════════════════════════
+    # RANDOMIZATION - Different color themes, styles, accents each time
+    # ═══════════════════════════════════════════════════════════════
+
+    COLOR_THEMES = [
+        {"name": "Professional Navy", "accent": RGBColor(13, 42, 74), "heading": RGBColor(25, 55, 109), "light": RGBColor(241, 245, 250)},
+        {"name": "Corporate Blue", "accent": RGBColor(29, 78, 216), "heading": RGBColor(30, 58, 138), "light": RGBColor(240, 244, 255)},
+        {"name": "Dark Green", "accent": RGBColor(22, 101, 52), "heading": RGBColor(20, 83, 45), "light": RGBColor(240, 253, 244)},
+        {"name": "Deep Red", "accent": RGBColor(153, 27, 27), "heading": RGBColor(127, 29, 29), "light": RGBColor(254, 242, 242)},
+        {"name": "Purple Premium", "accent": RGBColor(109, 40, 217), "heading": RGBColor(88, 28, 135), "light": RGBColor(250, 245, 255)},
+        {"name": "Teal Modern", "accent": RGBColor(13, 148, 136), "heading": RGBColor(0, 121, 107), "light": RGBColor(240, 253, 250)},
+        {"name": "Amber Classic", "accent": RGBColor(180, 83, 9), "heading": RGBColor(146, 64, 14), "light": RGBColor(255, 251, 235)},
+        {"name": "Indigo Tech", "accent": RGBColor(79, 70, 229), "heading": RGBColor(67, 56, 202), "light": RGBColor(238, 242, 255)},
+    ]
+
+    COVER_STYLES = ["centered", "left", "right", "minimal", "elegant"]
+    ACCENT_POSITIONS = ["top", "bottom", "left", "none"]
+
+    selected_theme = _random.choice(COLOR_THEMES)
+    accent_color = selected_theme["accent"]
+    heading_color = selected_theme["heading"]
+    cover_style = _random.choice(COVER_STYLES)
+    accent_position = _random.choice(ACCENT_POSITIONS)
 
     BLACK = RGBColor(0, 0, 0)
+
+    # ═══════════════════════════════════════════════════════════════
+    # PROFESSIONAL COVER PAGE - RANDOMIZED STYLES
+    # ═══════════════════════════════════════════════════════════════
+
+    # Add top accent bar if style includes it
+    if accent_position == "top":
+        accent_para = doc.add_paragraph()
+        accent_para.paragraph_format.space_before = Pt(0)
+        accent_para.paragraph_format.space_after = Pt(18)
+        accent_run = accent_para.add_run("━" * 50)
+        accent_run.font.color.rgb = accent_color
+        accent_run.font.size = Pt(14)
+
+    # Add spacing before title
+    spacing_before = _random.randint(2, 4)
+    for _ in range(spacing_before):
+        doc.add_paragraph()
+
+    # RANDOMIZED TITLE ALIGNMENT
+    if cover_style == "centered":
+        title_align = WD_ALIGN_PARAGRAPH.CENTER
+    elif cover_style == "left":
+        title_align = WD_ALIGN_PARAGRAPH.LEFT
+    elif cover_style == "right":
+        title_align = WD_ALIGN_PARAGRAPH.RIGHT
+    else:
+        title_align = WD_ALIGN_PARAGRAPH.CENTER
+
+    # RANDOMIZED TITLE SIZE
+    title_size = _random.randint(16, 20)
+
+    # Title with random color theme
+    if title:
+        title_para = doc.add_paragraph()
+        title_para.alignment = title_align
+        if is_rtl and title_align != WD_ALIGN_PARAGRAPH.CENTER:
+            pPr = title_para._p.get_or_add_pPr()
+            bidi = OxmlElement("w:bidi")
+            pPr.append(bidi)
+        title_run = title_para.add_run(title)
+        title_run.bold = True
+        title_run.font.size = Pt(title_size)
+        title_run.font.name = "Calibri"
+        title_run.font.color.rgb = heading_color  # Use random theme color
+        title_para.space_after = Pt(24)
+
+    # Spacer
+    doc.add_paragraph()
+
+    # Student name with accent color
+    if student_name:
+        student_para = doc.add_paragraph()
+        student_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        if is_rtl:
+            pPr = student_para._p.get_or_add_pPr()
+            bidi = OxmlElement("w:bidi")
+            pPr.append(bidi)
+        student_run = student_para.add_run(student_name)
+        student_run.font.size = Pt(12)
+        student_run.font.name = "Times New Roman"
+        student_run.font.color.rgb = accent_color  # Use theme accent
+        student_para.space_after = Pt(12)
+
+    # Course
+    if course:
+        course_para = doc.add_paragraph()
+        course_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        if is_rtl:
+            pPr = course_para._p.get_or_add_pPr()
+            bidi = OxmlElement("w:bidi")
+            pPr.append(bidi)
+        course_run = course_para.add_run(course)
+        course_run.font.size = Pt(11)
+        course_run.font.name = "Times New Roman"
+        course_para.space_after = Pt(12)
+
+    # Instructor
+    if instructor:
+        inst_para = doc.add_paragraph()
+        inst_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        if is_rtl:
+            pPr = inst_para._p.get_or_add_pPr()
+            bidi = OxmlElement("w:bidi")
+            pPr.append(bidi)
+        inst_label = "مامۆستا: " if is_rtl else "Instructor: "
+        inst_run = inst_para.add_run(inst_label + instructor)
+        inst_run.font.size = Pt(11)
+        inst_run.font.name = "Times New Roman"
+        inst_para.space_after = Pt(12)
+
+    # Date with accent color
+    if date_str:
+        date_para = doc.add_paragraph()
+        date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        if is_rtl:
+            pPr = date_para._p.get_or_add_pPr()
+            bidi = OxmlElement("w:bidi")
+            pPr.append(bidi)
+        date_label = "بەروار: " if is_rtl else "Date: "
+        date_run = date_para.add_run(date_label + date_str)
+        date_run.font.size = Pt(11)
+        date_run.font.name = "Times New Roman"
+        date_run.font.color.rgb = accent_color
+
+    # Add bottom accent bar if style includes it
+    if accent_position == "bottom":
+        accent_para = doc.add_paragraph()
+        accent_para.paragraph_format.space_before = Pt(18)
+        accent_para.paragraph_format.space_after = Pt(0)
+        accent_run = accent_para.add_run("━" * 50)
+        accent_run.font.color.rgb = accent_color
+        accent_run.font.size = Pt(14)
+
+    # Page break after cover
+    if title or student_name or course or instructor or date_str:
+        p = doc.add_paragraph()
+        run = p.add_run()
+        br = OxmlElement("w:br")
+        br.set(qn("w:type"), "page")
+        run._r.append(br)
 
     def set_rtl_para(para):
         if not is_rtl:
@@ -1115,7 +1291,7 @@ async def report_download_word(
         para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
     def apply_font(run, size, bold=False, italic=False, underline=False,
-                   caps=False, small_caps=False, font_name=None):
+                   caps=False, small_caps=False, font_name=None, color=None):
         name = font_name or body_font
         run.font.size = Pt(size)
         run.font.bold = bold
@@ -1123,7 +1299,7 @@ async def report_download_word(
         run.font.underline = underline
         run.font.all_caps = caps
         run.font.small_caps = small_caps
-        run.font.color.rgb = BLACK
+        run.font.color.rgb = color or BLACK
         # Fix: set font for ALL script types including Complex Script (Arabic/Kurdish)
         rPr = run._r.get_or_add_rPr()
         rFonts = rPr.find(qn("w:rFonts"))
@@ -1198,10 +1374,15 @@ async def report_download_word(
             p.alignment = align
             p.paragraph_format.space_before = Pt(12)
             p.paragraph_format.space_after  = Pt(8)
+
+            # Add accent line before heading if enabled
+            if accent_position == "left":
+                p.paragraph_format.left_indent = Inches(0.3)
+
             run = p.add_run(stripped[3:])
             apply_font(run, tpl["h2_size"], bold=tpl["h2_bold"], italic=tpl["h2_italic"],
                        underline=tpl["h2_underline"], caps=tpl["h2_caps"],
-                       small_caps=tpl["h2_small_caps"], font_name=head_font)
+                       small_caps=tpl["h2_small_caps"], font_name=head_font, color=heading_color)
             apply_h2_border(p)
             set_rtl_para(p)
 
@@ -1230,8 +1411,13 @@ async def report_download_word(
                 run = p.add_run(stripped)
                 apply_font(run, tpl["body_size"] + 1, font_name=body_font)
             else:
-                p.paragraph_format.space_after   = Pt(tpl["space_after_pt"])
-                p.paragraph_format.line_spacing  = Pt(tpl["line_spacing_pt"])
+                # PROFESSIONAL BODY TEXT FORMATTING
+                # Use justified alignment for clean edges
+                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                # Line spacing 1.5 for readability
+                p.paragraph_format.line_spacing = 1.5
+                # Spacing after paragraph
+                p.paragraph_format.space_after = Pt(12)
                 if tpl["first_indent"]:
                     p.paragraph_format.first_line_indent = Inches(0.3)
                 set_rtl_para(p)
@@ -1239,10 +1425,10 @@ async def report_download_word(
                 for part in parts:
                     if part.startswith("**") and part.endswith("**"):
                         run = p.add_run(part[2:-2])
-                        apply_font(run, tpl["body_size"], bold=True)
+                        apply_font(run, 12, bold=True, font_name="Times New Roman")
                     else:
                         run = p.add_run(part)
-                        apply_font(run, tpl["body_size"])
+                        apply_font(run, 12, font_name="Times New Roman")
 
     buf = io.BytesIO()
     doc.save(buf)
@@ -1253,3 +1439,34 @@ async def report_download_word(
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="{safe}.docx"'},
     )
+
+
+@app.post("/report/download/word/json")
+async def report_download_word_json(
+    json_data: str = Form(...),
+    filename: str = Form("report")
+):
+    """
+    Convert JSON report structure to Word document
+
+    Args:
+        json_data: JSON string containing report structure
+        filename: Output filename
+
+    Returns:
+        Word document as download
+    """
+    try:
+        # Convert JSON to Word
+        word_buffer = json_to_word(json_data)
+
+        safe = (filename or "report").replace(" ", "_")
+        return StreamingResponse(
+            word_buffer,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f'attachment; filename="{safe}.docx"'},
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating document: {str(e)}")

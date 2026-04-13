@@ -65,3 +65,24 @@ CREATE POLICY "Users can view own generations" ON generations
 
 CREATE POLICY "Users can view own payments" ON payments
   FOR ALL USING (auth.uid() = user_id);
+
+-- RPC function to get user generation statistics split by type
+CREATE OR REPLACE FUNCTION get_user_gen_stats()
+RETURNS TABLE(
+  user_id UUID,
+  total_tokens BIGINT,
+  total_gens BIGINT,
+  ai_detect_gens BIGINT,
+  other_gens BIGINT,
+  total_cost NUMERIC
+) AS $$
+SELECT
+  g.user_id,
+  COALESCE(SUM(CAST(g.tokens_used AS BIGINT)), 0)::BIGINT as total_tokens,
+  COALESCE(COUNT(*) FILTER (WHERE g.deleted IS NOT TRUE), 0)::BIGINT as total_gens,
+  COALESCE(COUNT(*) FILTER (WHERE g.output_type = 'ai-detect' AND g.deleted IS NOT TRUE), 0)::BIGINT as ai_detect_gens,
+  COALESCE(COUNT(*) FILTER (WHERE g.output_type != 'ai-detect' AND g.deleted IS NOT TRUE), 0)::BIGINT as other_gens,
+  COALESCE(SUM(CAST(g.cost_usd AS NUMERIC)), 0)::NUMERIC as total_cost
+FROM generations g
+GROUP BY g.user_id;
+$$ LANGUAGE SQL STABLE;

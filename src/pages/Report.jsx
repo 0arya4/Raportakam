@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { generateWordDoc } from '../utils/generateWord'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -39,6 +38,20 @@ const REPORT_STAGES = [
   { id: 4, label: 'ئامادەیە!',              icon: '○' },
 ]
 
+// Random color themes — same as generateWord.js
+const THEMES = [
+  { name: 'Navy', h2: '#1F3A74', h1: '#0D2657', h3: '#404040' },           // Professional Navy
+  { name: 'Blue', h2: '#1D4ED8', h1: '#1E3A8A', h3: '#475569' },          // Corporate Blue
+  { name: 'Green', h2: '#15803D', h1: '#166534', h3: '#475569' },         // Dark Green
+  { name: 'Red', h2: '#991B1B', h1: '#7F1D1D', h3: '#4F46E5' },          // Deep Red
+  { name: 'Purple', h2: '#6D28D9', h1: '#581C87', h3: '#475569' },        // Purple Premium
+  { name: 'Teal', h2: '#0D9488', h1: '#047857', h3: '#475569' },          // Teal Modern
+  { name: 'Amber', h2: '#B45309', h1: '#92400E', h3: '#475569' },         // Amber Classic
+  { name: 'Indigo', h2: '#4F46E5', h1: '#4338CA', h3: '#475569' },        // Indigo Tech
+]
+const COVER_STYLES = ['centered', 'left', 'right', 'minimal', 'elegant']
+const ACCENT_POSITIONS = ['top', 'bottom', 'none']
+
 export default function Report() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -53,6 +66,9 @@ export default function Report() {
   const [estimate, setEstimate] = useState(null)
   const [downloadingWord, setDownloadingWord] = useState(false)
   const [currentStage, setCurrentStage] = useState(0)
+  const [selectedTheme, setSelectedTheme] = useState(() => THEMES[Math.floor(Math.random() * THEMES.length)])
+  const [selectedCoverStyle, setSelectedCoverStyle] = useState(() => COVER_STYLES[Math.floor(Math.random() * COVER_STYLES.length)])
+  const [selectedAccentPos, setSelectedAccentPos] = useState(() => ACCENT_POSITIONS[Math.floor(Math.random() * ACCENT_POSITIONS.length)])
 
   const [form, setForm] = useState({
     topic: '',
@@ -68,8 +84,8 @@ export default function Report() {
     research_level: 'Medium',
     citation_styles: ['APA'],
     include_abstract: false,
-    include_conclusion: true,
-    include_references: true,
+    include_conclusion: false,
+    include_references: false,
     language: 'English',
   })
 
@@ -104,6 +120,9 @@ export default function Report() {
       setError('خاڵی تە پێویست نییە'); return
     }
     setError('')
+    setSelectedTheme(THEMES[Math.floor(Math.random() * THEMES.length)])
+    setSelectedCoverStyle(COVER_STYLES[Math.floor(Math.random() * COVER_STYLES.length)])
+    setSelectedAccentPos(ACCENT_POSITIONS[Math.floor(Math.random() * ACCENT_POSITIONS.length)])
     setState('generating')
     setStreamedText('')
     setCurrentStage(0)
@@ -172,6 +191,11 @@ export default function Report() {
                 }, 80)
               }
             }
+            // Use final_json if provided (cleaned JSON without markdown blocks)
+            if (data.final_json) {
+              textRef.current = data.final_json
+              setStreamedText(data.final_json)
+            }
             if (data.done) {
               gotDone = true
               clearInterval(timerRef.current)
@@ -209,18 +233,32 @@ export default function Report() {
     setDownloadingWord(true)
     setError('')
     try {
-      const blob = await generateWordDoc(streamedText, form.language)
-      triggerDownload(URL.createObjectURL(blob), `${form.title || form.topic || 'report'}.docx`)
+      // streamedText contains JSON from Claude, send it to backend for conversion
+      const formData = new FormData()
+      formData.append('json_data', streamedText)
+      formData.append('filename', form.title || form.topic || 'report')
+
+      const response = await fetch(`${API_URL}/report/download/word/json`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || 'Word download failed')
+      }
+
+      const blob = await response.blob()
+      const filename = `${(form.title || form.topic || 'report').replace(/\s+/g, '_')}.docx`
+      triggerDownload(URL.createObjectURL(blob), filename)
     } catch (e) {
       setError('داگرتنی Word سەرکەوتوو نەبوو: ' + e.message)
+      console.error('Word download error:', e)
     } finally {
       setDownloadingWord(false)
     }
   }
 
-  const handleDownloadPDF = () => {
-    window.print()
-  }
 
   const isRTL = form.language === 'Kurdish (Sorani)' || form.language === 'Arabic'
   const isPro = profile?.plan === 'pro'
@@ -323,7 +361,7 @@ export default function Report() {
                   <textarea
                     value={form.topic}
                     onChange={e => set('topic', e.target.value)}
-                    placeholder="بابەتی ڕاپۆرتەکەت بنووسە..."
+                    placeholder=""
                     rows={3}
                     className="w-full bg-slate-800 border border-slate-700 focus:border-yellow-500/60 text-white text-sm rounded-xl px-4 py-3 outline-none resize-none placeholder-slate-600 transition"
                   />
@@ -331,18 +369,18 @@ export default function Report() {
 
                 {/* Academic info */}
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-                  <p className="text-white font-bold text-sm">زانیاری ئەکادیمی <span className="text-slate-500 font-normal text-xs">(دیاری نییە)</span></p>
+                  <p className="text-white font-bold text-sm">زانیاری ئەکادیمی <span className="text-slate-500 font-normal text-xs">(دەتوانی بە بەتاڵی جێیبهێڵیت)</span></p>
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { k: 'title',        label: 'ناونیشانی ڕاپۆرت',  ph: 'وەک نمونە: کاریگەری AI' },
-                      { k: 'student_name', label: 'ناوی خوێندکار',     ph: 'ناوی تەواو' },
-                      { k: 'course',       label: 'زانکۆ / کۆرس',      ph: 'وەک نمونە: زانکۆی سلێمانی' },
-                      { k: 'instructor',   label: 'مامۆستا',            ph: 'ناوی مامۆستا' },
+                      { k: 'title',        label: 'ناونیشانی ڕاپۆرت' },
+                      { k: 'student_name', label: 'ناوی خوێندکار' },
+                      { k: 'course',       label: 'زانکۆ / کۆرس' },
+                      { k: 'instructor',   label: 'مامۆستا' },
                     ].map(f => (
                       <div key={f.k}>
                         <label className="text-xs text-slate-400 block mb-1">{f.label}</label>
                         <input value={form[f.k]} onChange={e => set(f.k, e.target.value)}
-                          placeholder={f.ph}
+                          placeholder=""
                           className="w-full bg-slate-800 border border-slate-700 focus:border-yellow-500/50 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder-slate-600 transition" />
                       </div>
                     ))}
@@ -350,24 +388,24 @@ export default function Report() {
                   <div>
                     <label className="text-xs text-slate-400 block mb-1">بەروار</label>
                     <input value={form.date} onChange={e => set('date', e.target.value)}
-                      placeholder="وەک نمونە: ٢٠٢٦"
+                      placeholder=""
                       className="w-full bg-slate-800 border border-slate-700 focus:border-yellow-500/50 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder-slate-600 transition" />
                   </div>
                 </div>
 
                 {/* Content */}
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-                  <p className="text-white font-bold text-sm">ناوەڕۆکی تر <span className="text-slate-500 font-normal text-xs">(دیاری نییە)</span></p>
+                  <p className="text-white font-bold text-sm">ناوەڕۆکی تر <span className="text-slate-500 font-normal text-xs">(دەتوانی بە بەتاڵی جێیبهێڵیت)</span></p>
                   <div>
                     <label className="text-xs text-slate-400 block mb-1">مەبەستی ڕاپۆرت</label>
                     <input value={form.purpose} onChange={e => set('purpose', e.target.value)}
-                      placeholder="مەبەستی سەرەکی ڕاپۆرتەکە..."
+                      placeholder=""
                       className="w-full bg-slate-800 border border-slate-700 focus:border-yellow-500/50 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder-slate-600 transition" />
                   </div>
                   <div>
                     <label className="text-xs text-slate-400 block mb-1">خاڵە سەرەکییەکان / بەشەکان</label>
                     <textarea value={form.points} onChange={e => set('points', e.target.value)}
-                      placeholder="هەر خاڵێک لە ێکی جیاوازدا بنووسە..."
+                      placeholder=""
                       rows={3}
                       className="w-full bg-slate-800 border border-slate-700 focus:border-yellow-500/50 text-white text-sm rounded-xl px-4 py-3 outline-none resize-none placeholder-slate-600 transition" />
                   </div>
@@ -619,18 +657,51 @@ export default function Report() {
                   />
                 </div>
 
-                {/* Streaming text preview */}
+                {/* Streaming JSON preview */}
                 {streamedText && (
                   <div className="bg-white rounded-2xl p-6 shadow-xl max-h-[400px] overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
-                    <div className={`text-slate-800 text-sm leading-relaxed font-serif space-y-2 ${isRTL ? 'text-right' : ''}`}>
-                      {streamedText.split('\n').map((line, i) => {
-                        if (line.startsWith('# '))  return <h1 key={i} className="text-xl font-black text-slate-900 border-b border-slate-200 pb-1 mt-4 mb-2">{line.slice(2)}</h1>
-                        if (line.startsWith('## ')) return <h2 key={i} className="text-base font-bold text-slate-800 mt-3 mb-1">{line.slice(3)}</h2>
-                        if (line.startsWith('### ')) return <h3 key={i} className="text-sm font-semibold text-slate-700 mt-2">{line.slice(4)}</h3>
-                        if (line.trim() === '' || line.trim() === '---') return <div key={i} className="h-1" />
-                        return <p key={i} className="text-slate-700 leading-6">{line}</p>
-                      })}
-                      <span className="inline-block w-1.5 h-4 bg-yellow-400 animate-pulse align-middle" />
+                    <div className={`text-slate-800 text-sm leading-relaxed space-y-3 ${isRTL ? 'text-right' : ''}`}>
+                      {(() => {
+                        try {
+                          // Try to parse streamedText as JSON
+                          const data = JSON.parse(streamedText)
+                          return (
+                            <>
+                              <h1 className="text-xl font-black border-b pb-2 mb-3" style={{ color: selectedTheme.h1, borderColor: selectedTheme.h2 }}>
+                                {data.title || 'Report'}
+                              </h1>
+                              {data.cover && (
+                                <div className="text-xs space-y-1 text-slate-600">
+                                  {data.cover.student && <p>👤 {data.cover.student}</p>}
+                                  {data.cover.university && <p>🏫 {data.cover.university}</p>}
+                                  {data.cover.instructor && <p>👨‍🏫 {data.cover.instructor}</p>}
+                                  {data.cover.date && <p>📅 {data.cover.date}</p>}
+                                </div>
+                              )}
+                              {data.abstract && (
+                                <div>
+                                  <h2 className="text-base font-bold mt-3 mb-1" style={{ color: selectedTheme.h2 }}>Abstract</h2>
+                                  <p className="text-slate-700 leading-6 text-xs">{data.abstract.substring(0, 200)}...</p>
+                                </div>
+                              )}
+                              {data.sections && data.sections.length > 0 && (
+                                <div>
+                                  <h2 className="text-base font-bold mt-3 mb-2" style={{ color: selectedTheme.h2 }}>Sections</h2>
+                                  <ul className="space-y-1">
+                                    {data.sections.slice(0, 3).map((s, i) => (
+                                      <li key={i} className="text-xs text-slate-600">✓ {s.heading}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              <span className="inline-block w-1.5 h-4 bg-yellow-400 animate-pulse align-middle mt-2" />
+                            </>
+                          )
+                        } catch (e) {
+                          // If not valid JSON yet, show raw preview
+                          return <p className="text-slate-600 text-xs">جاوەڕێ... (Receiving data...)</p>
+                        }
+                      })()}
                     </div>
                   </div>
                 )}
@@ -651,11 +722,6 @@ export default function Report() {
                     ڕاپۆرتەکە ئامادەیە
                   </span>
                   <div className="flex items-center gap-2">
-                    <button onClick={handleDownloadPDF}
-                      className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold px-3 py-2 rounded-xl transition">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                      PDF
-                    </button>
                     <button onClick={handleDownloadWord} disabled={downloadingWord}
                       className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold px-3 py-2 rounded-xl transition disabled:opacity-40">
                       {downloadingWord
@@ -670,57 +736,6 @@ export default function Report() {
                   </div>
                 </div>
 
-                {/* Report content — this div is captured for PDF */}
-                <div id="report-preview" className="bg-white rounded-2xl p-8 shadow-2xl" dir={isRTL ? 'rtl' : 'ltr'}>
-                  <div className={`text-slate-800 text-sm leading-relaxed font-serif space-y-3 ${isRTL ? 'text-right' : ''}`}>
-                    {(() => {
-                      const lines = streamedText.split('\n')
-                      const out = []
-                      let i = 0
-                      while (i < lines.length) {
-                        const line = lines[i]
-                        // Collect markdown table block
-                        if (line.trim().startsWith('|')) {
-                          const tableLines = []
-                          while (i < lines.length && lines[i].trim().startsWith('|')) {
-                            tableLines.push(lines[i])
-                            i++
-                          }
-                          const rows = tableLines
-                            .filter(l => !/^\|[\s|:-]+\|$/.test(l.trim()))
-                            .map(l => l.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()))
-                          if (rows.length > 0) {
-                            out.push(
-                              <div key={`tbl-${i}`} className="overflow-x-auto my-4">
-                                <table className="w-full border-collapse text-xs">
-                                  <thead>
-                                    <tr>{rows[0].map((h, j) => <th key={j} className="bg-slate-800 text-white font-bold px-3 py-2 text-left border border-slate-600">{h}</th>)}</tr>
-                                  </thead>
-                                  <tbody>
-                                    {rows.slice(1).map((row, ri) => (
-                                      <tr key={ri} className={ri % 2 === 1 ? 'bg-slate-50' : ''}>
-                                        {row.map((c, j) => <td key={j} className="px-3 py-1.5 border border-slate-200 text-slate-700">{c}</td>)}
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )
-                          }
-                          continue
-                        }
-                        if (line.startsWith('# '))  out.push(<h1 key={i} className="text-2xl font-black text-slate-900 border-b border-slate-200 pb-2 mt-6 mb-3">{line.slice(2)}</h1>)
-                        else if (line.startsWith('## ')) out.push(<h2 key={i} className="text-lg font-bold text-slate-800 mt-5 mb-2">{line.slice(3)}</h2>)
-                        else if (line.startsWith('### ')) out.push(<h3 key={i} className="text-base font-semibold text-slate-700 mt-4 mb-1">{line.slice(4)}</h3>)
-                        else if (line.startsWith('**') && line.endsWith('**')) out.push(<p key={i} className="font-bold text-slate-800">{line.slice(2,-2)}</p>)
-                        else if (line.trim() === '' || line.trim() === '---') out.push(<div key={i} className="h-2" />)
-                        else out.push(<p key={i} className="text-slate-700 leading-7">{line}</p>)
-                        i++
-                      }
-                      return out
-                    })()}
-                  </div>
-                </div>
 
                 <button onClick={() => navigate(-1)}
                   className="w-full flex items-center justify-center gap-1 border border-slate-800 hover:border-slate-700 text-slate-500 hover:text-slate-300 text-sm px-5 py-3 rounded-xl transition hover:bg-white/5">

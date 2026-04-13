@@ -4,12 +4,24 @@ import {
   Table, TableRow, TableCell, WidthType, ShadingType,
 } from 'docx'
 
-// ── Color palette ──────────────────────────────────────────────────────────
-const DARK_BLUE  = '1F3864'   // headings
-const MID_BLUE   = '2F5496'   // h2 accent line
-const DARK_GRAY  = '404040'   // h3 / meta
-const BLACK      = '000000'   // body text
-const RULE_GRAY  = 'CCCCCC'   // header/footer thin lines
+// ── RANDOM COLOR THEMES ────────────────────────────────────────────────────
+// Different color scheme each time!
+const THEMES = [
+  { name: 'Navy', h2: '1F3A74', h1: '0D2657', h3: '404040' },           // Professional Navy
+  { name: 'Blue', h2: '1D4ED8', h1: '1E3A8A', h3: '475569' },          // Corporate Blue
+  { name: 'Green', h2: '15803D', h1: '166534', h3: '475569' },         // Dark Green
+  { name: 'Red', h2: '991B1B', h1: '7F1D1D', h3: '4F46E5' },          // Deep Red
+  { name: 'Purple', h2: '6D28D9', h1: '581C87', h3: '475569' },        // Purple Premium
+  { name: 'Teal', h2: '0D9488', h1: '047857', h3: '475569' },          // Teal Modern
+  { name: 'Amber', h2: 'B45309', h1: '92400E', h3: '475569' },         // Amber Classic
+  { name: 'Indigo', h2: '4F46E5', h1: '4338CA', h3: '475569' },        // Indigo Tech
+]
+
+// ── RANDOM COVER PAGE STYLES ────────────────────────────────────────────────
+const COVER_STYLES = ['centered', 'left', 'right', 'minimal', 'elegant']
+const ACCENT_POSITIONS = ['top', 'bottom', 'none']
+const BLACK      = '000000'            // body text (always black)
+const RULE_GRAY  = 'CCCCCC'            // header/footer thin lines
 
 // ── Unit helpers ──────────────────────────────────────────────────────────
 const hp   = pt => pt * 2             // half-points  (docx font size)
@@ -24,8 +36,19 @@ const H3_SIZE      = 13
 const BODY_SIZE    = 12
 const TINY         = 9     // header / footer text
 
-export async function generateWordDoc(text, language) {
+export async function generateWordDoc(text, language, themeOverride = null, coverStyleOverride = null, accentPosOverride = null) {
   const isRTL = /kurdish|arabic|sorani/i.test(language)
+
+  // Use provided theme or pick random
+  const selectedTheme = themeOverride || THEMES[Math.floor(Math.random() * THEMES.length)]
+  const selectedCoverStyle = coverStyleOverride || COVER_STYLES[Math.floor(Math.random() * COVER_STYLES.length)]
+  const selectedAccentPos = accentPosOverride || ACCENT_POSITIONS[Math.floor(Math.random() * ACCENT_POSITIONS.length)]
+  const randomTitleSize = 24 + Math.floor(Math.random() * 5)
+
+  // Theme colors derived from selected theme
+  const DARK_BLUE  = selectedTheme.h2    // headings
+  const MID_BLUE   = selectedTheme.h1    // h2 accent line
+  const DARK_GRAY  = selectedTheme.h3    // h3 / meta
 
   // Body: Times New Roman for Latin, NRT Reg for Kurdish/Arabic
   const bodyFont = isRTL ? 'NRT Reg' : 'Times New Roman'
@@ -51,6 +74,47 @@ export async function generateWordDoc(text, language) {
   // ── Helper: thin border rule ───────────────────────────────────────────
   const rule = (side, color = RULE_GRAY, sz = 4) =>
     ({ [side]: { style: BorderStyle.SINGLE, size: sz, color, space: 4 } })
+
+  // ── Helper: create SmartArt-style process diagram ─────────────────────
+  const buildSmartArtDiagram = (title, steps) => {
+    const diagrams = []
+
+    // Title
+    diagrams.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: tw(12), after: tw(12) },
+      children: [run(title, { size: H2_SIZE, bold: true, color: DARK_BLUE, font: headFont })],
+    }))
+
+    // Process boxes
+    steps.forEach((step, idx) => {
+      // Step box
+      const boxPara = new Paragraph({
+        alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.CENTER,
+        spacing: { before: tw(8), after: tw(8) },
+        border: {
+          top: { style: BorderStyle.SINGLE, size: 12, color: DARK_BLUE, space: 4 },
+          bottom: { style: BorderStyle.SINGLE, size: 12, color: DARK_BLUE, space: 4 },
+          left: { style: BorderStyle.SINGLE, size: 12, color: DARK_BLUE, space: 4 },
+          right: { style: BorderStyle.SINGLE, size: 12, color: DARK_BLUE, space: 4 },
+        },
+        shading: { fill: 'F0F4F8', type: ShadingType.CLEAR, color: 'auto' },
+        children: [run(step, { size: BODY_SIZE, bold: true, color: DARK_BLUE, font: bodyFont })],
+      })
+      diagrams.push(boxPara)
+
+      // Arrow between steps
+      if (idx < steps.length - 1) {
+        diagrams.push(new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: tw(2), after: tw(2) },
+          children: [run('↓', { size: 14, color: DARK_BLUE })],
+        }))
+      }
+    })
+
+    return diagrams
+  }
 
   // ── Parse source markdown ──────────────────────────────────────────────
   const lines = text.split('\n')
@@ -116,12 +180,22 @@ export async function generateWordDoc(text, language) {
   }
 
   // ══════════════════════════════════════════════════════════════════════
-  //  SECTION 1 — Cover page
+  //  SECTION 1 — Cover page (with random styles)
   // ══════════════════════════════════════════════════════════════════════
   const coverChildren = []
 
-  // Push title ~⅓ down the page
-  coverChildren.push(new Paragraph({ spacing: { before: tw(140), after: 0 } }))
+  // ── Top accent bar (if selected) ────────────────────────────────────
+  if (selectedAccentPos === 'top') {
+    coverChildren.push(new Paragraph({
+      spacing: { before: 0, after: tw(20) },
+      border: rule('bottom', DARK_BLUE, 20),
+      children: [run('', { size: 1 })],
+    }))
+  }
+
+  // ── Dynamic spacing before title based on cover style ───────────────
+  const spacingBeforeTitle = selectedCoverStyle === 'minimal' ? tw(80) : selectedCoverStyle === 'elegant' ? tw(120) : tw(140)
+  coverChildren.push(new Paragraph({ spacing: { before: spacingBeforeTitle, after: 0 } }))
 
   let pastTitle = false
   let reachedFirstSection = false
@@ -131,16 +205,23 @@ export async function generateWordDoc(text, language) {
     const line = raw.trim()
 
     if (line.startsWith('# ')) {
-      // ── Main title
+      // ── Main title with dynamic alignment ────────────────────────────
+      let titleAlign = AlignmentType.CENTER
+      if (selectedCoverStyle === 'left') titleAlign = AlignmentType.LEFT
+      else if (selectedCoverStyle === 'right') titleAlign = AlignmentType.RIGHT
+
+      const titleBorder = selectedCoverStyle === 'minimal' ? {} : rule('bottom', DARK_BLUE, 18)
+      const titleSpacingAfter = selectedCoverStyle === 'elegant' ? tw(12) : tw(6)
+
       coverChildren.push(new Paragraph({
-        alignment:   AlignmentType.CENTER,
-        spacing:     { before: 0, after: tw(6) },
-        border:      rule('bottom', DARK_BLUE, 18),
+        alignment:   titleAlign,
+        spacing:     { before: 0, after: titleSpacingAfter },
+        border:      titleBorder,
         bidirectional: isRTL,
-        children:    [run(line.slice(2), { size: COVER_TITLE, bold: true, color: DARK_BLUE, font: headFont })],
+        children:    [run(line.slice(2), { size: randomTitleSize, bold: true, color: DARK_BLUE, font: headFont })],
       }))
-      // Spacer after title rule
-      coverChildren.push(new Paragraph({ spacing: { before: 0, after: tw(28) } }))
+      // Spacer after title
+      coverChildren.push(new Paragraph({ spacing: { before: 0, after: tw(selectedCoverStyle === 'minimal' ? 12 : 28) } }))
       pastTitle = true
 
     } else if (line.startsWith('## ')) {
@@ -148,13 +229,27 @@ export async function generateWordDoc(text, language) {
 
     } else if (pastTitle && line) {
       // ── Meta line (student, course, instructor, date)
+      let metaAlign = AlignmentType.CENTER
+      if (selectedCoverStyle === 'left') metaAlign = AlignmentType.LEFT
+      else if (selectedCoverStyle === 'right') metaAlign = AlignmentType.RIGHT
+
       coverChildren.push(new Paragraph({
-        alignment:   AlignmentType.CENTER,
+        alignment:   metaAlign,
         spacing:     { before: 0, after: tw(5) },
         bidirectional: isRTL,
         children:    [run(line, { size: COVER_META, color: DARK_GRAY, font: headFont })],
       }))
     }
+  }
+
+  // ── Bottom accent bar (if selected) ──────────────────────────────────
+  if (selectedAccentPos === 'bottom') {
+    coverChildren.push(new Paragraph({ spacing: { before: tw(40), after: 0 } }))
+    coverChildren.push(new Paragraph({
+      spacing: { before: 0, after: 0 },
+      border: rule('top', DARK_BLUE, 20),
+      children: [run('', { size: 1 })],
+    }))
   }
 
   // ══════════════════════════════════════════════════════════════════════
@@ -174,7 +269,8 @@ export async function generateWordDoc(text, language) {
     tableBuffer = []
   }
 
-  for (const raw of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]
     const line = raw.trim()
 
     // Collect markdown table lines
@@ -200,12 +296,35 @@ export async function generateWordDoc(text, language) {
       }))
 
     } else if (line.startsWith('### ')) {
+      const sectionTitle = line.slice(4)
       bodyChildren.push(new Paragraph({
         alignment:   headAlign,
         spacing:     { before: tw(12), after: tw(4) },
         bidirectional: isRTL,
-        children:    [run(line.slice(4), { size: H3_SIZE, bold: true, color: DARK_GRAY, font: headFont })],
+        children:    [run(sectionTitle, { size: H3_SIZE, bold: true, color: DARK_GRAY, font: headFont })],
       }))
+
+      // ── Detect SmartArt patterns (consecutive bullet points/steps) ─────
+      const nextLines = []
+      let j = i + 1
+      while (j < lines.length && lines[j].trim() !== '') {
+        const nextLine = lines[j].trim()
+        if (nextLine.startsWith('#') || nextLine.startsWith('|')) break
+        if (nextLine.startsWith('- ') || nextLine.startsWith('* ') || /^\d+\.\s/.test(nextLine)) {
+          nextLines.push(nextLine.replace(/^[-*]\s|\d+\.\s/, ''))
+          j++
+        } else {
+          break
+        }
+      }
+
+      // If we found 2+ steps, render as SmartArt diagram
+      if (nextLines.length >= 2) {
+        const diagramElements = buildSmartArtDiagram(sectionTitle, nextLines)
+        bodyChildren.push(...diagramElements)
+        i = j - 1  // Skip processed lines
+        continue
+      }
 
     } else if (line.startsWith('#### ')) {
       bodyChildren.push(new Paragraph({
@@ -248,13 +367,25 @@ export async function generateWordDoc(text, language) {
     ],
   })
 
-  // ── Page number footer ────────────────────────────────────────────────
+  // ── Page number footer with title ─────────────────────────────────────
   const pageFooter = new Footer({
     children: [
       new Paragraph({
-        alignment: AlignmentType.CENTER,
+        alignment: isRTL ? AlignmentType.LEFT : AlignmentType.RIGHT,
         border:    rule('top'),
-        spacing:   { before: tw(4) },
+        spacing:   { before: tw(4), after: tw(1) },
+        children:  [new TextRun({
+          text: reportTitle,
+          italic: true,
+          size:  hp(TINY),
+          color: '888888',
+          font:  { name: headFont, cs: headFont },
+          rightToLeft: isRTL,
+        })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing:   { before: tw(1) },
         children:  [new TextRun({
           children: [PageNumber.CURRENT],
           size:  hp(TINY),
@@ -264,6 +395,13 @@ export async function generateWordDoc(text, language) {
       }),
     ],
   })
+
+  // ── Apply left accent bar to body if selected ──────────────────────────
+  // Note: Left accent disabled - use top/bottom/none for cleaner look
+  let finalBodyChildren = bodyChildren
+  // if (selectedAccentPos === 'left') {
+  //   Add left border to body paragraphs if re-enabled in future
+  // }
 
   const margin = inTw(1.0)
 
@@ -283,7 +421,7 @@ export async function generateWordDoc(text, language) {
         },
         headers: { default: pageHeader },
         footers: { default: pageFooter },
-        children: bodyChildren,
+        children: finalBodyChildren,
       },
     ],
   })

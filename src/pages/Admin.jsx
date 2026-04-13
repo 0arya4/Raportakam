@@ -303,9 +303,10 @@ export default function Admin() {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-5 gap-3">
                 {[
                   { label: 'دروستکردن', value: profileModal.generations_used || 0, color: 'text-blue-400' },
+                  { label: 'Ai detect', value: profileModal.ai_detect_used || 0, color: 'text-red-400' },
                   { label: 'تۆکێن', value: formatTokens(profileModal.tokens_used || 0), color: 'text-purple-400' },
                   { label: 'تێچوون', value: calcCost(profileModal.tokens_used || 0, profileModal.cost_usd), color: 'text-green-400' },
                   { label: 'خاڵ', value: profileModal.points ?? 100, color: 'text-yellow-400' },
@@ -558,6 +559,7 @@ export default function Admin() {
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">ئیمەیڵ</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">پلان</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">دروستکردن</th>
+                    <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">Ai detect</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">تۆکێن</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">تێچوون</th>
                     <th className="text-right text-xs text-slate-500 font-medium px-5 py-3">خاڵ</th>
@@ -568,17 +570,17 @@ export default function Admin() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-16">
+                      <td colSpan={11} className="text-center py-16">
                         <div className="w-8 h-8 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin mx-auto" />
                       </td>
                     </tr>
                   ) : users.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-16 text-slate-500">هیچ بەکارهێنەرێک نییە</td>
+                      <td colSpan={11} className="text-center py-16 text-slate-500">هیچ بەکارهێنەرێک نییە</td>
                     </tr>
                   ) : filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-16 text-slate-500">هیچ ئەنجامێک نەدۆزرایەوە</td>
+                      <td colSpan={11} className="text-center py-16 text-slate-500">هیچ ئەنجامێک نەدۆزرایەوە</td>
                     </tr>
                   ) : filteredUsers.map((u, i) => (
                     <motion.tr
@@ -613,6 +615,7 @@ export default function Admin() {
                         </button>
                       </td>
                       <td className="px-5 py-3.5 text-slate-300 text-center">{u.generations_used}</td>
+                      <td className="px-5 py-3.5 text-red-400 text-center font-medium">{u.ai_detect_used}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
                           <div className="flex-1 bg-slate-800 rounded-full h-1.5 max-w-[60px]">
