@@ -785,8 +785,8 @@ STRUCTURE (in this order):
 3. ## Introduction — context, objectives, scope
 4. ## [Body Sections] — expand each provided key point into a full detailed section
 5. ## Discussion — analysis and implications (skip for Short length)
-6. ## Conclusion — summary and closing remarks
-7. ## References — only if requested, formatted in the specified citation style
+6. ## Conclusion — only if Include Conclusion is Yes
+7. ## References — only if Include References is Yes, formatted in the specified citation style
 
 LENGTH TARGETS (word count for body text, excluding cover):
 - Short: 500–800 words
@@ -813,6 +813,7 @@ class ReportRequest(BaseModel):
     citation_styles: list = ["APA"]
     include_abstract: bool = False
     include_references: bool = True
+    include_conclusion: bool = True
     language: str = "English"
     user_id: str = ""
     plan: str = "free"
@@ -834,6 +835,7 @@ def build_report_prompt(req: ReportRequest) -> str:
     if req.research_level != "Basic" and req.citation_styles:
         lines.append(f"Citation Style: {', '.join(req.citation_styles)}")
     lines.append(f"Include Abstract: {'Yes' if req.include_abstract else 'No'}")
+    lines.append(f"Include Conclusion: {'Yes' if req.include_conclusion else 'No'}")
     lines.append(f"Include References: {'Yes' if req.include_references else 'No'}")
     lines.append(f"Language: {req.language}")
     lines.append("\nGenerate the complete report now.")
@@ -946,54 +948,66 @@ async def report_stream(req: ReportRequest):
 
 import random as _random
 
-# Layout/font-only templates — no color differentiation, randomly picked each download
-WORD_TEMPLATES = {
-    "classic": {
+KURDISH_FONTS = ["Rabar_022", "NRT"]
+
+# Layouts differ in: font, size, spacing, margins, heading alignment, underline, caps, indent, border
+WORD_TEMPLATES = [
+    {   # Classic academic — centered title with rule, underlined h2, generous spacing
         "body_font": "Times New Roman", "heading_font": "Times New Roman",
-        "h1_size": 26, "h2_size": 16, "h3_size": 13, "body_size": 12,
-        "h1_bold": True, "h2_bold": True, "h3_bold": True,
-        "h1_italic": False, "h3_italic": False,
-        "h1_center": True,
-        "line_spacing_pt": 18, "space_after_pt": 8,
-        "margin_in": 1.25,
-    },
-    "modern": {
-        "body_font": "Calibri", "heading_font": "Calibri",
-        "h1_size": 28, "h2_size": 15, "h3_size": 12, "body_size": 11,
-        "h1_bold": True, "h2_bold": True, "h3_bold": False,
-        "h1_italic": False, "h3_italic": False,
-        "h1_center": True,
-        "line_spacing_pt": 15, "space_after_pt": 6,
-        "margin_in": 1.0,
-    },
-    "elegant": {
-        "body_font": "Georgia", "heading_font": "Georgia",
-        "h1_size": 26, "h2_size": 16, "h3_size": 13, "body_size": 12,
-        "h1_bold": True, "h2_bold": True, "h3_bold": False,
-        "h1_italic": False, "h3_italic": True,
-        "h1_center": True,
+        "h1_size": 30, "h2_size": 18, "h3_size": 14, "body_size": 13,
+        "h1_bold": True,  "h2_bold": True,  "h3_bold": True,
+        "h1_italic": False, "h2_italic": False, "h3_italic": False,
+        "h1_center": True,  "h2_center": False,
+        "h2_underline": True, "h2_caps": False,
+        "h2_border": False, "h1_border": True,
         "line_spacing_pt": 22, "space_after_pt": 10,
-        "margin_in": 1.3,
+        "margin_in": 1.25, "first_indent": False,
     },
-    "scientific": {
-        "body_font": "Arial", "heading_font": "Arial",
-        "h1_size": 16, "h2_size": 13, "h3_size": 11, "body_size": 10,
-        "h1_bold": True, "h2_bold": True, "h3_bold": True,
-        "h1_italic": False, "h3_italic": False,
-        "h1_center": False,
-        "line_spacing_pt": 13, "space_after_pt": 4,
-        "margin_in": 1.0,
-    },
-    "minimal": {
+    {   # Modern minimal — Calibri, left-aligned, underline-less, tight
         "body_font": "Calibri", "heading_font": "Calibri",
-        "h1_size": 24, "h2_size": 14, "h3_size": 12, "body_size": 11,
-        "h1_bold": True, "h2_bold": False, "h3_bold": False,
-        "h1_italic": False, "h3_italic": False,
-        "h1_center": True,
-        "line_spacing_pt": 16, "space_after_pt": 6,
-        "margin_in": 1.5,
+        "h1_size": 32, "h2_size": 17, "h3_size": 13, "body_size": 12,
+        "h1_bold": True,  "h2_bold": True,  "h3_bold": False,
+        "h1_italic": False, "h2_italic": False, "h3_italic": False,
+        "h1_center": True,  "h2_center": False,
+        "h2_underline": False, "h2_caps": False,
+        "h2_border": True, "h1_border": False,
+        "line_spacing_pt": 16, "space_after_pt": 7,
+        "margin_in": 1.0, "first_indent": False,
     },
-}
+    {   # Elegant literary — Georgia, wide margins, double spacing, italic h3, indent
+        "body_font": "Georgia", "heading_font": "Georgia",
+        "h1_size": 30, "h2_size": 18, "h3_size": 14, "body_size": 13,
+        "h1_bold": True,  "h2_bold": True,  "h3_bold": False,
+        "h1_italic": False, "h2_italic": False, "h3_italic": True,
+        "h1_center": True,  "h2_center": True,
+        "h2_underline": False, "h2_caps": False,
+        "h2_border": False, "h1_border": True,
+        "line_spacing_pt": 26, "space_after_pt": 12,
+        "margin_in": 1.5, "first_indent": True,
+    },
+    {   # Technical — Arial, ALL CAPS h2, compact, narrow margins
+        "body_font": "Arial", "heading_font": "Arial",
+        "h1_size": 24, "h2_size": 15, "h3_size": 12, "body_size": 11,
+        "h1_bold": True,  "h2_bold": True,  "h3_bold": True,
+        "h1_italic": False, "h2_italic": False, "h3_italic": False,
+        "h1_center": False, "h2_center": False,
+        "h2_underline": False, "h2_caps": True,
+        "h2_border": False, "h1_border": False,
+        "line_spacing_pt": 14, "space_after_pt": 6,
+        "margin_in": 1.0, "first_indent": False,
+    },
+    {   # Airy open — Calibri, very loose, h2 non-bold with border, huge title
+        "body_font": "Calibri", "heading_font": "Calibri",
+        "h1_size": 36, "h2_size": 16, "h3_size": 13, "body_size": 12,
+        "h1_bold": True,  "h2_bold": False, "h3_bold": False,
+        "h1_italic": False, "h2_italic": False, "h3_italic": False,
+        "h1_center": True,  "h2_center": False,
+        "h2_underline": False, "h2_caps": False,
+        "h2_border": True, "h1_border": False,
+        "line_spacing_pt": 24, "space_after_pt": 12,
+        "margin_in": 1.5, "first_indent": False,
+    },
+]
 
 
 @app.post("/report/download/word")
@@ -1010,8 +1024,12 @@ async def report_download_word(
     from docx.oxml.ns import qn
 
     is_rtl = any(lang in language.lower() for lang in ["kurdish", "arabic", "sorani", "persian", "فارسی", "عربی", "کوردی"])
-    # Randomly pick a layout template each download
-    tpl = _random.choice(list(WORD_TEMPLATES.values()))
+    tpl = _random.choice(WORD_TEMPLATES)
+    # Kurdish/Arabic: override fonts with Rabar or NRT
+    kfont = _random.choice(KURDISH_FONTS) if is_rtl else None
+
+    def _font(key):
+        return kfont if is_rtl else tpl[key]
 
     doc = Document()
     m = Inches(tpl["margin_in"])
@@ -1021,7 +1039,7 @@ async def report_download_word(
         section.left_margin = m
         section.right_margin = m
 
-    BLACK = (0, 0, 0)
+    BLACK = RGBColor(0, 0, 0)
 
     def set_rtl_para(para):
         if not is_rtl:
@@ -1031,12 +1049,25 @@ async def report_download_word(
         pPr.append(bidi)
         para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
-    def apply_font(run, size, bold=False, italic=False, font_name=None):
-        run.font.name = font_name or tpl["body_font"]
+    def apply_font(run, size, bold=False, italic=False, underline=False, caps=False, font_name=None):
+        run.font.name = font_name or _font("body_font")
         run.font.size = Pt(size)
         run.font.bold = bold
         run.font.italic = italic
-        run.font.color.rgb = RGBColor(*BLACK)
+        run.font.underline = underline
+        run.font.all_caps = caps
+        run.font.color.rgb = BLACK
+
+    def add_bottom_border(para, thick=False):
+        pPr = para._p.get_or_add_pPr()
+        pBdr = OxmlElement("w:pBdr")
+        bottom = OxmlElement("w:bottom")
+        bottom.set(qn("w:val"), "single")
+        bottom.set(qn("w:sz"), "12" if thick else "6")
+        bottom.set(qn("w:space"), "4")
+        bottom.set(qn("w:color"), "000000")
+        pBdr.append(bottom)
+        pPr.append(pBdr)
 
     def add_page_break():
         p = doc.add_paragraph()
@@ -1045,36 +1076,41 @@ async def report_download_word(
         br.set(qn("w:type"), "page")
         run._r.append(br)
 
-    cover_done = False
-
     for line in text.split("\n"):
         stripped = line.strip()
 
         if stripped.startswith("# "):
             p = doc.add_paragraph()
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER if tpl["h1_center"] else WD_ALIGN_PARAGRAPH.LEFT
-            p.paragraph_format.space_before = Pt(72)
-            p.paragraph_format.space_after = Pt(24)
+            align = WD_ALIGN_PARAGRAPH.RIGHT if is_rtl else (WD_ALIGN_PARAGRAPH.CENTER if tpl["h1_center"] else WD_ALIGN_PARAGRAPH.LEFT)
+            p.alignment = align
+            p.paragraph_format.space_before = Pt(80)
+            p.paragraph_format.space_after = Pt(28)
             run = p.add_run(stripped[2:])
-            apply_font(run, tpl["h1_size"], bold=tpl["h1_bold"], italic=tpl["h1_italic"], font_name=tpl["heading_font"])
+            apply_font(run, tpl["h1_size"], bold=tpl["h1_bold"], italic=tpl["h1_italic"], font_name=_font("heading_font"))
+            if tpl["h1_border"]:
+                add_bottom_border(p, thick=True)
             set_rtl_para(p)
 
         elif stripped.startswith("## "):
             add_page_break()
-            cover_done = True
             p = doc.add_paragraph()
-            p.paragraph_format.space_before = Pt(8)
-            p.paragraph_format.space_after = Pt(4)
+            align = WD_ALIGN_PARAGRAPH.RIGHT if is_rtl else (WD_ALIGN_PARAGRAPH.CENTER if tpl["h2_center"] else WD_ALIGN_PARAGRAPH.LEFT)
+            p.alignment = align
+            p.paragraph_format.space_before = Pt(10)
+            p.paragraph_format.space_after = Pt(6)
             run = p.add_run(stripped[3:])
-            apply_font(run, tpl["h2_size"], bold=tpl["h2_bold"], font_name=tpl["heading_font"])
+            apply_font(run, tpl["h2_size"], bold=tpl["h2_bold"], italic=tpl["h2_italic"],
+                       underline=tpl["h2_underline"], caps=tpl["h2_caps"], font_name=_font("heading_font"))
+            if tpl["h2_border"]:
+                add_bottom_border(p)
             set_rtl_para(p)
 
         elif stripped.startswith("### "):
             p = doc.add_paragraph()
-            p.paragraph_format.space_before = Pt(4)
-            p.paragraph_format.space_after = Pt(2)
+            p.paragraph_format.space_before = Pt(6)
+            p.paragraph_format.space_after = Pt(3)
             run = p.add_run(stripped[4:])
-            apply_font(run, tpl["h3_size"], bold=tpl["h3_bold"], italic=tpl["h3_italic"], font_name=tpl["heading_font"])
+            apply_font(run, tpl["h3_size"], bold=tpl["h3_bold"], italic=tpl["h3_italic"], font_name=_font("heading_font"))
             set_rtl_para(p)
 
         elif stripped == "" or stripped == "---":
@@ -1085,6 +1121,8 @@ async def report_download_word(
             p = doc.add_paragraph()
             p.paragraph_format.space_after = Pt(tpl["space_after_pt"])
             p.paragraph_format.line_spacing = Pt(tpl["line_spacing_pt"])
+            if tpl["first_indent"]:
+                p.paragraph_format.first_line_indent = Inches(0.3)
             set_rtl_para(p)
             parts = re.split(r"(\*\*[^*]+\*\*)", stripped)
             for part in parts:
