@@ -173,7 +173,27 @@ def json_to_word(report_json_str):
         print(f"[JSON] String length: {len(report_json_str)}")
         print(f"[JSON] First 200: {report_json_str[:200]}")
         print(f"[JSON] Last 100: {report_json_str[-100:]}")
-        raise ValueError(f"Invalid JSON format: {str(e)}")
+
+        # Try to fix common JSON issues
+        try:
+            # Try removing trailing incomplete data
+            if len(report_json_str) > 100:
+                # Find last complete object/array and truncate there
+                last_close = max(
+                    report_json_str.rfind('}'),
+                    report_json_str.rfind(']')
+                )
+                if last_close > 100:
+                    fixed_json = report_json_str[:last_close + 1]
+                    print(f"[JSON] Trying truncated version (length {len(fixed_json)})")
+                    report_data = json.loads(fixed_json)
+                    print(f"[JSON] Successfully parsed truncated JSON")
+                else:
+                    raise ValueError(f"Invalid JSON format: {str(e)}")
+            else:
+                raise ValueError(f"Invalid JSON format: {str(e)}")
+        except Exception as fix_err:
+            raise ValueError(f"Invalid JSON format: {str(e)} (could not recover)")
 
     # Create document
     doc = Document()
