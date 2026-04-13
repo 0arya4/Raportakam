@@ -4,8 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
 import { generateWordDoc } from '../utils/generateWord'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -53,7 +51,6 @@ export default function Report() {
   const [error, setError] = useState('')
   const [elapsed, setElapsed] = useState(0)
   const [estimate, setEstimate] = useState(null)
-  const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [downloadingWord, setDownloadingWord] = useState(false)
   const [currentStage, setCurrentStage] = useState(0)
 
@@ -221,48 +218,8 @@ export default function Report() {
     }
   }
 
-  const handleDownloadPDF = async () => {
-    setDownloadingPDF(true)
-    setError('')
-    try {
-      const el = document.getElementById('report-preview')
-      el.style.borderRadius = '0'
-      el.style.boxShadow = 'none'
-
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-      })
-
-      el.style.borderRadius = ''
-      el.style.boxShadow = ''
-
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      const pageW = pdf.internal.pageSize.getWidth()
-      const pageH = pdf.internal.pageSize.getHeight()
-      const imgW  = pageW
-      const imgH  = (canvas.height / canvas.width) * pageW
-      const imgData = canvas.toDataURL('image/jpeg', 0.92)
-
-      let yOffset = 0
-      let heightLeft = imgH
-      pdf.addImage(imgData, 'JPEG', 0, yOffset, imgW, imgH)
-      heightLeft -= pageH
-      while (heightLeft > 0) {
-        yOffset -= pageH
-        pdf.addPage()
-        pdf.addImage(imgData, 'JPEG', 0, yOffset, imgW, imgH)
-        heightLeft -= pageH
-      }
-
-      pdf.save(`${form.title || form.topic || 'report'}.pdf`)
-    } catch (e) {
-      setError('داگرتنی PDF سەرکەوتوو نەبوو: ' + e.message)
-    } finally {
-      setDownloadingPDF(false)
-    }
+  const handleDownloadPDF = () => {
+    window.print()
   }
 
   const isRTL = form.language === 'Kurdish (Sorani)' || form.language === 'Arabic'
@@ -279,6 +236,44 @@ export default function Report() {
   return (
     <>
       <Navbar />
+      <style>{`
+        @media print {
+          body > *:not(#print-root) { display: none !important; }
+          #print-root { display: block !important; position: fixed; inset: 0; background: white; z-index: 9999; padding: 0; }
+          #report-print-content {
+            font-family: 'Times New Roman', Georgia, serif;
+            font-size: 12pt;
+            line-height: 1.8;
+            color: black;
+            background: white;
+            padding: 2cm 2.5cm;
+            direction: ${isRTL ? 'rtl' : 'ltr'};
+          }
+          #report-print-content h1 { font-size: 22pt; font-weight: 900; text-align: center; border-bottom: 2px solid black; padding-bottom: 8pt; margin: 0 0 16pt; }
+          #report-print-content h2 { font-size: 16pt; font-weight: 700; margin: 24pt 0 8pt; page-break-after: avoid; }
+          #report-print-content h3 { font-size: 13pt; font-weight: 600; margin: 16pt 0 6pt; }
+          #report-print-content p  { margin: 0 0 8pt; text-align: justify; }
+          #report-print-content .cover-meta { text-align: center; margin: 6pt 0; font-size: 11pt; }
+          @page { margin: 0; }
+        }
+        #print-root { display: none; }
+      `}</style>
+      <div id="print-root">
+        <div id="report-print-content">
+          {(() => {
+            let onCover = true
+            return streamedText.split('\n').map((line, i) => {
+              if (line.startsWith('# '))  return <h1 key={i}>{line.slice(2)}</h1>
+              if (line.startsWith('## ')) { onCover = false; return <h2 key={i}>{line.slice(3)}</h2> }
+              if (line.startsWith('### ')) return <h3 key={i}>{line.slice(4)}</h3>
+              if (line.trim() === '' || line.trim() === '---') return <br key={i} />
+              if (onCover) return <p key={i} className="cover-meta">{line}</p>
+              return <p key={i}>{line}</p>
+            })
+          })()}
+        </div>
+      </div>
+
       <div className="min-h-screen bg-slate-950 pt-24 pb-20 px-4">
         <div className="max-w-2xl mx-auto">
 
@@ -656,12 +651,10 @@ export default function Report() {
                     ڕاپۆرتەکە ئامادەیە
                   </span>
                   <div className="flex items-center gap-2">
-                    <button onClick={handleDownloadPDF} disabled={downloadingPDF}
-                      className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold px-3 py-2 rounded-xl transition disabled:opacity-40">
-                      {downloadingPDF
-                        ? <><svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>چاوەڕێ...</>
-                        : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>PDF</>
-                      }
+                    <button onClick={handleDownloadPDF}
+                      className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold px-3 py-2 rounded-xl transition">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                      PDF
                     </button>
                     <button onClick={handleDownloadWord} disabled={downloadingWord}
                       className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold px-3 py-2 rounded-xl transition disabled:opacity-40">

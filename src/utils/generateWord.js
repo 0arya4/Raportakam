@@ -86,7 +86,7 @@ export async function generateWordDoc(text, language) {
   let embeddedFonts = []
   try {
     const res = await fetch(nrtFontUrl)
-    const fontData = await res.arrayBuffer()
+    const fontData = new Uint8Array(await res.arrayBuffer())
     embeddedFonts = [{ name: NRT_FONT_NAME, data: fontData }]
   } catch {}
 
