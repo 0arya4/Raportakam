@@ -814,7 +814,6 @@ class ReportRequest(BaseModel):
     include_abstract: bool = False
     include_references: bool = True
     language: str = "English"
-    template: str = "classic"
     user_id: str = ""
     plan: str = "free"
 
@@ -945,42 +944,54 @@ async def report_stream(req: ReportRequest):
     )
 
 
+import random as _random
+
+# Layout/font-only templates — no color differentiation, randomly picked each download
 WORD_TEMPLATES = {
     "classic": {
         "body_font": "Times New Roman", "heading_font": "Times New Roman",
         "h1_size": 26, "h2_size": 16, "h3_size": 13, "body_size": 12,
-        "h1_color": (0, 0, 0), "h2_color": (0, 0, 0), "h3_color": (60, 60, 60),
-        "line_spacing_pt": 18,
+        "h1_bold": True, "h2_bold": True, "h3_bold": True,
+        "h1_italic": False, "h3_italic": False,
+        "h1_center": True,
+        "line_spacing_pt": 18, "space_after_pt": 8,
+        "margin_in": 1.25,
     },
     "modern": {
         "body_font": "Calibri", "heading_font": "Calibri",
-        "h1_size": 28, "h2_size": 17, "h3_size": 13, "body_size": 11,
-        "h1_color": (31, 73, 125), "h2_color": (46, 116, 181), "h3_color": (70, 130, 180),
-        "line_spacing_pt": 16,
+        "h1_size": 28, "h2_size": 15, "h3_size": 12, "body_size": 11,
+        "h1_bold": True, "h2_bold": True, "h3_bold": False,
+        "h1_italic": False, "h3_italic": False,
+        "h1_center": True,
+        "line_spacing_pt": 15, "space_after_pt": 6,
+        "margin_in": 1.0,
     },
     "elegant": {
         "body_font": "Georgia", "heading_font": "Georgia",
         "h1_size": 26, "h2_size": 16, "h3_size": 13, "body_size": 12,
-        "h1_color": (60, 20, 100), "h2_color": (90, 42, 130), "h3_color": (120, 70, 160),
-        "line_spacing_pt": 20,
+        "h1_bold": True, "h2_bold": True, "h3_bold": False,
+        "h1_italic": False, "h3_italic": True,
+        "h1_center": True,
+        "line_spacing_pt": 22, "space_after_pt": 10,
+        "margin_in": 1.3,
     },
     "scientific": {
         "body_font": "Arial", "heading_font": "Arial",
         "h1_size": 16, "h2_size": 13, "h3_size": 11, "body_size": 10,
-        "h1_color": (0, 0, 0), "h2_color": (30, 30, 30), "h3_color": (60, 60, 60),
-        "line_spacing_pt": 13,
+        "h1_bold": True, "h2_bold": True, "h3_bold": True,
+        "h1_italic": False, "h3_italic": False,
+        "h1_center": False,
+        "line_spacing_pt": 13, "space_after_pt": 4,
+        "margin_in": 1.0,
     },
     "minimal": {
         "body_font": "Calibri", "heading_font": "Calibri",
         "h1_size": 24, "h2_size": 14, "h3_size": 12, "body_size": 11,
-        "h1_color": (0, 0, 0), "h2_color": (80, 80, 80), "h3_color": (120, 120, 120),
-        "line_spacing_pt": 15,
-    },
-    "kurdish": {
-        "body_font": "Arial", "heading_font": "Arial",
-        "h1_size": 28, "h2_size": 20, "h3_size": 15, "body_size": 14,
-        "h1_color": (92, 51, 23), "h2_color": (123, 69, 19), "h3_color": (150, 100, 50),
-        "line_spacing_pt": 26,
+        "h1_bold": True, "h2_bold": False, "h3_bold": False,
+        "h1_italic": False, "h3_italic": False,
+        "h1_center": True,
+        "line_spacing_pt": 16, "space_after_pt": 6,
+        "margin_in": 1.5,
     },
 }
 
@@ -990,7 +1001,6 @@ async def report_download_word(
     text: str = Form(...),
     filename: str = Form("report"),
     language: str = Form("English"),
-    template: str = Form("classic"),
 ):
     import io
     from docx import Document
@@ -1000,14 +1010,18 @@ async def report_download_word(
     from docx.oxml.ns import qn
 
     is_rtl = any(lang in language.lower() for lang in ["kurdish", "arabic", "sorani", "persian", "فارسی", "عربی", "کوردی"])
-    tpl = WORD_TEMPLATES.get(template, WORD_TEMPLATES["classic"])
+    # Randomly pick a layout template each download
+    tpl = _random.choice(list(WORD_TEMPLATES.values()))
 
     doc = Document()
+    m = Inches(tpl["margin_in"])
     for section in doc.sections:
         section.top_margin = Inches(1.1)
         section.bottom_margin = Inches(1.1)
-        section.left_margin = Inches(1.25)
-        section.right_margin = Inches(1.25)
+        section.left_margin = m
+        section.right_margin = m
+
+    BLACK = (0, 0, 0)
 
     def set_rtl_para(para):
         if not is_rtl:
@@ -1017,51 +1031,42 @@ async def report_download_word(
         pPr.append(bidi)
         para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
-    def apply_font(run, size, bold=False, color=None, font_name=None):
+    def apply_font(run, size, bold=False, italic=False, font_name=None):
         run.font.name = font_name or tpl["body_font"]
         run.font.size = Pt(size)
         run.font.bold = bold
-        if color:
-            run.font.color.rgb = RGBColor(*color)
+        run.font.italic = italic
+        run.font.color.rgb = RGBColor(*BLACK)
 
-    def add_page_break(doc):
+    def add_page_break():
         p = doc.add_paragraph()
         run = p.add_run()
-        run.add_break()
-        from docx.oxml.ns import qn
-        from docx.oxml import OxmlElement
         br = OxmlElement("w:br")
         br.set(qn("w:type"), "page")
         run._r.append(br)
 
-    cover_done = False  # True once we've hit the first ## section
+    cover_done = False
 
     for line in text.split("\n"):
         stripped = line.strip()
 
         if stripped.startswith("# "):
-            # Cover title — large, centered, bold
             p = doc.add_paragraph()
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p.paragraph_format.space_before = Pt(60)
-            p.paragraph_format.space_after = Pt(20)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER if tpl["h1_center"] else WD_ALIGN_PARAGRAPH.LEFT
+            p.paragraph_format.space_before = Pt(72)
+            p.paragraph_format.space_after = Pt(24)
             run = p.add_run(stripped[2:])
-            apply_font(run, tpl["h1_size"] + 4, bold=True, color=tpl["h1_color"], font_name=tpl["heading_font"])
+            apply_font(run, tpl["h1_size"], bold=tpl["h1_bold"], italic=tpl["h1_italic"], font_name=tpl["heading_font"])
             set_rtl_para(p)
 
         elif stripped.startswith("## "):
-            # Each major section starts on a new page
-            if cover_done:
-                add_page_break(doc)
-            else:
-                # End of cover page — insert page break before first section
-                add_page_break(doc)
-                cover_done = True
+            add_page_break()
+            cover_done = True
             p = doc.add_paragraph()
-            p.paragraph_format.space_before = Pt(6)
+            p.paragraph_format.space_before = Pt(8)
             p.paragraph_format.space_after = Pt(4)
             run = p.add_run(stripped[3:])
-            apply_font(run, tpl["h2_size"], bold=True, color=tpl["h2_color"], font_name=tpl["heading_font"])
+            apply_font(run, tpl["h2_size"], bold=tpl["h2_bold"], font_name=tpl["heading_font"])
             set_rtl_para(p)
 
         elif stripped.startswith("### "):
@@ -1069,7 +1074,7 @@ async def report_download_word(
             p.paragraph_format.space_before = Pt(4)
             p.paragraph_format.space_after = Pt(2)
             run = p.add_run(stripped[4:])
-            apply_font(run, tpl["h3_size"], bold=True, color=tpl["h3_color"], font_name=tpl["heading_font"])
+            apply_font(run, tpl["h3_size"], bold=tpl["h3_bold"], italic=tpl["h3_italic"], font_name=tpl["heading_font"])
             set_rtl_para(p)
 
         elif stripped == "" or stripped == "---":
@@ -1077,9 +1082,8 @@ async def report_download_word(
             p.paragraph_format.space_after = Pt(0)
 
         else:
-            # Body paragraph with **bold** inline support
             p = doc.add_paragraph()
-            p.paragraph_format.space_after = Pt(6)
+            p.paragraph_format.space_after = Pt(tpl["space_after_pt"])
             p.paragraph_format.line_spacing = Pt(tpl["line_spacing_pt"])
             set_rtl_para(p)
             parts = re.split(r"(\*\*[^*]+\*\*)", stripped)
