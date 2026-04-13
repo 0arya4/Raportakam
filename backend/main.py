@@ -1003,16 +1003,21 @@ async def report_stream(req: ReportRequest):
                             "cost_usd": cost,
                             "language": req.language,
                         }).execute()
-                        if req.plan != "pro":
+                        if req.plan != "pro" and req.user_id:
                             report_cost = (30
                                 + (2 if req.length == "Long" else 0)
                                 + (2 if req.style == "Advanced Academic" else 0)
                                 + (2 if req.research_level == "Advanced" else 0)
                                 + (2 if req.include_abstract else 0)
                                 + (2 if req.include_references else 0))
-                            profile = sb.table("profiles").select("points").eq("id", req.user_id).single().execute()
-                            current = (profile.data or {}).get("points", 100)
-                            sb.table("profiles").update({"points": max(0, current - report_cost)}).eq("id", req.user_id).execute()
+                            try:
+                                profile = sb.table("profiles").select("points").eq("id", req.user_id).single().execute()
+                                current = (profile.data or {}).get("points", 100)
+                                new_points = max(0, current - report_cost)
+                                sb.table("profiles").update({"points": new_points}).eq("id", req.user_id).execute()
+                                print(f"[POINTS] user={req.user_id} cost={report_cost} prev={current} new={new_points}")
+                            except Exception as points_err:
+                                print(f"[POINTS] deduction error for user={req.user_id}: {points_err}")
                     except Exception as db_err:
                         print(f"[DB] report record error: {db_err}")
                 yield f"data: {json.dumps({'done': True, 'tokens': tokens})}\n\n"
