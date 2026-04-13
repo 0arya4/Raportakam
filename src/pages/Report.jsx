@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/Navbar'
@@ -30,6 +30,13 @@ const LANGUAGES = [
 const CITATIONS = ['APA', 'Harvard', 'MLA', 'IEEE', 'Chicago', 'Google Scholar']
 const BASE_COST = 30
 
+const REPORT_STAGES = [
+  { id: 1, label: 'شیکردنەوەی بابەت...',   icon: '🔍' },
+  { id: 2, label: 'نووسینی ناوەڕۆک...',    icon: '✍️' },
+  { id: 3, label: 'ئامادەکردنی ڕاپۆرت...', icon: '📄' },
+  { id: 4, label: 'ئامادەیە!',              icon: '✅' },
+]
+
 export default function Report() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -43,6 +50,7 @@ export default function Report() {
   const [elapsed, setElapsed] = useState(0)
   const [estimate, setEstimate] = useState(null)
   const [downloading, setDownloading] = useState(false)
+  const [currentStage, setCurrentStage] = useState(0)
 
   const [form, setForm] = useState({
     topic: '',
@@ -95,6 +103,7 @@ export default function Report() {
     setError('')
     setState('generating')
     setStreamedText('')
+    setCurrentStage(0)
     textRef.current = ''
     setElapsed(0)
     startRef.current = Date.now()
@@ -114,10 +123,13 @@ export default function Report() {
         }),
       })
 
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
-
+      let buffer = ''
       let gotDone = false
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) {
@@ -125,12 +137,16 @@ export default function Report() {
             clearInterval(timerRef.current)
             clearTimeout(updateTimerRef.current)
             setStreamedText(textRef.current)
+            setCurrentStage(4)
             setState('done')
           }
           break
         }
-        const raw = decoder.decode(value)
-        for (const line of raw.split('\n')) {
+        // Properly buffer across chunk boundaries
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() // keep incomplete last line
+        for (const line of lines) {
           if (!line.startsWith('data: ')) continue
           try {
             const data = JSON.parse(line.slice(6))
@@ -139,6 +155,9 @@ export default function Report() {
               setError(data.error)
               setState('form')
               return
+            }
+            if (data.stage) {
+              setCurrentStage(data.stage)
             }
             if (data.chunk) {
               textRef.current += data.chunk
@@ -155,6 +174,7 @@ export default function Report() {
               clearInterval(timerRef.current)
               clearTimeout(updateTimerRef.current)
               setStreamedText(textRef.current)
+              setCurrentStage(4)
               setState('done')
               if (user) {
                 const { data: p } = await supabase.from('profiles').select('points').eq('id', user.id).single()
@@ -478,45 +498,85 @@ export default function Report() {
             {/* ── GENERATING STATE ── */}
             {state === 'generating' && (
               <motion.div key="gen" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="space-y-4">
+                className="space-y-3">
 
-                {/* Progress card */}
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
-                      <span className="text-white font-bold text-sm">دروستکردنی ڕاپۆرت...</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-yellow-400 font-black text-lg font-mono" dir="ltr">
-                        {estimate ? (elapsed < estimate ? `~${estimate - elapsed} چرکە` : '...') : '---'}
-                      </div>
-                    </div>
-                  </div>
+                {/* Timer bar */}
+                <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="text-slate-500 text-xs">کاتی خەمڵێندراو</span>
+                  <span className="text-orange-400 font-bold text-sm" dir="ltr">
+                    {estimate
+                      ? (elapsed < estimate ? `~${estimate - elapsed} چرکە` : '...')
+                      : '---'}
+                  </span>
+                </div>
 
-                  {/* Progress bar */}
-                  {estimate && (
-                    <div className="bg-slate-800 rounded-full h-1.5 mb-4">
-                      <motion.div
-                        className="h-1.5 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400"
-                        style={{ width: `${Math.min((elapsed / estimate) * 100, 95)}%` }}
-                        transition={{ duration: 0.5 }}
-                      />
-                    </div>
+                {/* Overtime warning */}
+                <AnimatePresence>
+                  {estimate && elapsed >= estimate && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      className="flex items-start gap-2 px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700/50 text-slate-400 text-xs" dir="rtl"
+                    >
+                      <span className="text-base mt-0.5">☁️</span>
+                      <span>
+                        <span className="font-semibold" style={{ color: '#f97316', textShadow: '0 0 8px rgba(249,115,22,0.7)' }}>لە کاتی ئاسای زیاتری پێچوو</span><br />
+                        <span className="text-slate-500">بەهۆی خاوی ئینتەرنێت یان زۆری وردەکاری لە ڕاپۆرتەکە</span>
+                      </span>
+                    </motion.div>
                   )}
+                </AnimatePresence>
 
-                  <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${
-                    useSonnet
-                      ? 'bg-yellow-400/10 border-yellow-500/30 text-yellow-400'
-                      : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
-                  }`}>
-                    {useSonnet ? 'Sonnet' : 'Haiku'}
-                  </div>
+                {/* Stages */}
+                {REPORT_STAGES.map(stage => {
+                  const isDone = currentStage > stage.id
+                  const isActive = currentStage === stage.id
+                  const isPending = currentStage < stage.id
+                  return (
+                    <motion.div key={stage.id}
+                      initial={{ opacity: 0, x: -20 }} animate={{ opacity: isPending ? 0.35 : 1, x: 0 }}
+                      transition={{ delay: stage.id * 0.07 }}
+                      className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                        isDone   ? 'bg-green-950 border-green-700' :
+                        isActive ? 'bg-slate-800 border-yellow-500 shadow-lg shadow-yellow-500/10' :
+                                   'bg-slate-900 border-slate-700'
+                      }`}
+                    >
+                      <div className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-700 text-lg flex-shrink-0">
+                        {isDone ? (
+                          <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}>✅</motion.span>
+                        ) : isActive ? (
+                          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                            className="w-5 h-5 border-2 border-yellow-400 border-t-transparent rounded-full" />
+                        ) : (
+                          <span className="text-slate-500">{stage.icon}</span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-semibold text-sm ${isDone ? 'text-green-400' : isActive ? 'text-white' : 'text-slate-500'}`}>
+                          {stage.label}
+                        </p>
+                        {isActive && (
+                          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-yellow-400 mt-0.5">
+                            چاوەڕێ بکە...
+                          </motion.p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )
+                })}
+
+                {/* Progress bar */}
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <motion.div className="h-full rounded-full"
+                    style={{ background: 'linear-gradient(90deg,#eab308,#f97316)' }}
+                    animate={{ width: `${Math.min((currentStage / 4) * 100, 95)}%` }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                  />
                 </div>
 
                 {/* Streaming text preview */}
                 {streamedText && (
-                  <div className="bg-white rounded-2xl p-6 shadow-xl max-h-[500px] overflow-y-auto" dir="ltr">
+                  <div className="bg-white rounded-2xl p-6 shadow-xl max-h-[400px] overflow-y-auto" dir="ltr">
                     <div className="text-slate-800 text-sm leading-relaxed font-serif space-y-2">
                       {streamedText.split('\n').map((line, i) => {
                         if (line.startsWith('# '))  return <h1 key={i} className="text-xl font-black text-slate-900 border-b border-slate-200 pb-1 mt-4 mb-2">{line.slice(2)}</h1>
@@ -560,7 +620,7 @@ export default function Report() {
                         : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Word</>
                       }
                     </button>
-                    <button onClick={() => { setState('form'); setStreamedText('') }}
+                    <button onClick={() => { setState('form'); setStreamedText(''); setCurrentStage(0) }}
                       className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition">
                       نوێ
                     </button>

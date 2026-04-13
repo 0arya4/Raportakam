@@ -935,10 +935,13 @@ async def report_stream(req: ReportRequest):
     max_tokens = {"Short": 2000, "Medium": 4000, "Long": 8000}.get(req.length, 4000)
 
     async def event_stream():
+        yield f"data: {json.dumps({'stage': 1, 'label': 'شیکردنەوەی بابەت...'})}\n\n"
+
         queue: asyncio.Queue = asyncio.Queue()
         loop = asyncio.get_running_loop()
         inp_tok = [0]
         out_tok = [0]
+        first_chunk_sent = [False]
 
         def run_claude():
             try:
@@ -948,6 +951,9 @@ async def report_stream(req: ReportRequest):
                     messages=[{"role": "user", "content": prompt}]
                 ) as stream:
                     for text in stream.text_stream:
+                        if not first_chunk_sent[0]:
+                            asyncio.run_coroutine_threadsafe(queue.put(("stage2", None)), loop)
+                            first_chunk_sent[0] = True
                         asyncio.run_coroutine_threadsafe(queue.put(("chunk", text)), loop)
                     usage = stream.get_final_message().usage
                     inp_tok[0] = usage.input_tokens or 0
@@ -960,9 +966,12 @@ async def report_stream(req: ReportRequest):
 
         while True:
             kind, data = await queue.get()
-            if kind == "chunk":
+            if kind == "stage2":
+                yield f"data: {json.dumps({'stage': 2, 'label': 'نووسینی ناوەڕۆک...'})}\n\n"
+            elif kind == "chunk":
                 yield f"data: {json.dumps({'chunk': data})}\n\n"
             elif kind == "done":
+                yield f"data: {json.dumps({'stage': 3, 'label': 'ئامادەکردنی ڕاپۆرت...'})}\n\n"
                 tokens = inp_tok[0] + out_tok[0]
                 cost = calc_cost_usd(model, inp_tok[0], out_tok[0])
                 if req.user_id:
