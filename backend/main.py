@@ -950,62 +950,72 @@ import random as _random
 
 KURDISH_FONTS = ["Rabar_022", "NRT"]
 
-# Layouts differ in: font, size, spacing, margins, heading alignment, underline, caps, indent, border
+# 5 dramatically different layouts — font, size, spacing, borders, alignment, indent all vary
 WORD_TEMPLATES = [
-    {   # Classic academic — centered title with rule, underlined h2, generous spacing
+    {   # Grand Academic: huge centered title + thick border rule, underlined h2, Times NR
+        "id": "grand",
         "body_font": "Times New Roman", "heading_font": "Times New Roman",
-        "h1_size": 30, "h2_size": 18, "h3_size": 14, "body_size": 13,
+        "h1_size": 48, "h2_size": 20, "h3_size": 15, "body_size": 13,
         "h1_bold": True,  "h2_bold": True,  "h3_bold": True,
         "h1_italic": False, "h2_italic": False, "h3_italic": False,
-        "h1_center": True,  "h2_center": False,
-        "h2_underline": True, "h2_caps": False,
-        "h2_border": False, "h1_border": True,
+        "h1_center": True, "h2_center": False,
+        "h2_underline": True, "h2_caps": False, "h2_small_caps": False,
+        "h1_border": "bottom_thick", "h2_border": None,
+        "cover_style": "centered",
         "line_spacing_pt": 22, "space_after_pt": 10,
         "margin_in": 1.25, "first_indent": False,
     },
-    {   # Modern minimal — Calibri, left-aligned, underline-less, tight
+    {   # Modern Edge: Calibri, left sidebar accent on h2, ALL CAPS h2, tight
+        "id": "modern",
         "body_font": "Calibri", "heading_font": "Calibri",
-        "h1_size": 32, "h2_size": 17, "h3_size": 13, "body_size": 12,
+        "h1_size": 44, "h2_size": 16, "h3_size": 13, "body_size": 12,
         "h1_bold": True,  "h2_bold": True,  "h3_bold": False,
         "h1_italic": False, "h2_italic": False, "h3_italic": False,
-        "h1_center": True,  "h2_center": False,
-        "h2_underline": False, "h2_caps": False,
-        "h2_border": True, "h1_border": False,
+        "h1_center": True, "h2_center": False,
+        "h2_underline": False, "h2_caps": True, "h2_small_caps": False,
+        "h1_border": None, "h2_border": "left_thick",
+        "cover_style": "centered",
         "line_spacing_pt": 16, "space_after_pt": 7,
         "margin_in": 1.0, "first_indent": False,
     },
-    {   # Elegant literary — Georgia, wide margins, double spacing, italic h3, indent
+    {   # Elegant Literary: Georgia, centered h2, double-spaced, italic h3, first-line indent
+        "id": "elegant",
         "body_font": "Georgia", "heading_font": "Georgia",
-        "h1_size": 30, "h2_size": 18, "h3_size": 14, "body_size": 13,
+        "h1_size": 46, "h2_size": 20, "h3_size": 15, "body_size": 13,
         "h1_bold": True,  "h2_bold": True,  "h3_bold": False,
         "h1_italic": False, "h2_italic": False, "h3_italic": True,
-        "h1_center": True,  "h2_center": True,
-        "h2_underline": False, "h2_caps": False,
-        "h2_border": False, "h1_border": True,
+        "h1_center": True, "h2_center": True,
+        "h2_underline": False, "h2_caps": False, "h2_small_caps": False,
+        "h1_border": "top_and_bottom", "h2_border": "bottom",
+        "cover_style": "centered",
         "line_spacing_pt": 26, "space_after_pt": 12,
         "margin_in": 1.5, "first_indent": True,
     },
-    {   # Technical — Arial, ALL CAPS h2, compact, narrow margins
+    {   # Technical Compact: Arial, left-aligned title, small-caps h2, single spacing
+        "id": "technical",
         "body_font": "Arial", "heading_font": "Arial",
-        "h1_size": 24, "h2_size": 15, "h3_size": 12, "body_size": 11,
+        "h1_size": 36, "h2_size": 14, "h3_size": 12, "body_size": 11,
         "h1_bold": True,  "h2_bold": True,  "h3_bold": True,
         "h1_italic": False, "h2_italic": False, "h3_italic": False,
         "h1_center": False, "h2_center": False,
-        "h2_underline": False, "h2_caps": True,
-        "h2_border": False, "h1_border": False,
+        "h2_underline": False, "h2_caps": False, "h2_small_caps": True,
+        "h1_border": "bottom", "h2_border": None,
+        "cover_style": "left",
         "line_spacing_pt": 14, "space_after_pt": 6,
         "margin_in": 1.0, "first_indent": False,
     },
-    {   # Airy open — Calibri, very loose, h2 non-bold with border, huge title
+    {   # Luxury Box: huge title in a box border, airy, Calibri, h2 with bottom border
+        "id": "luxury",
         "body_font": "Calibri", "heading_font": "Calibri",
-        "h1_size": 36, "h2_size": 16, "h3_size": 13, "body_size": 12,
+        "h1_size": 52, "h2_size": 17, "h3_size": 13, "body_size": 12,
         "h1_bold": True,  "h2_bold": False, "h3_bold": False,
         "h1_italic": False, "h2_italic": False, "h3_italic": False,
-        "h1_center": True,  "h2_center": False,
-        "h2_underline": False, "h2_caps": False,
-        "h2_border": True, "h1_border": False,
-        "line_spacing_pt": 24, "space_after_pt": 12,
-        "margin_in": 1.5, "first_indent": False,
+        "h1_center": True, "h2_center": False,
+        "h2_underline": False, "h2_caps": False, "h2_small_caps": False,
+        "h1_border": "box", "h2_border": "bottom",
+        "cover_style": "centered",
+        "line_spacing_pt": 24, "space_after_pt": 11,
+        "margin_in": 1.4, "first_indent": False,
     },
 ]
 
@@ -1025,19 +1035,16 @@ async def report_download_word(
 
     is_rtl = any(lang in language.lower() for lang in ["kurdish", "arabic", "sorani", "persian", "فارسی", "عربی", "کوردی"])
     tpl = _random.choice(WORD_TEMPLATES)
-    # Kurdish/Arabic: override fonts with Rabar or NRT
-    kfont = _random.choice(KURDISH_FONTS) if is_rtl else None
-
-    def _font(key):
-        return kfont if is_rtl else tpl[key]
+    body_font  = _random.choice(KURDISH_FONTS) if is_rtl else tpl["body_font"]
+    head_font  = body_font if is_rtl else tpl["heading_font"]
 
     doc = Document()
     m = Inches(tpl["margin_in"])
-    for section in doc.sections:
-        section.top_margin = Inches(1.1)
-        section.bottom_margin = Inches(1.1)
-        section.left_margin = m
-        section.right_margin = m
+    for sec in doc.sections:
+        sec.top_margin    = Inches(1.0)
+        sec.bottom_margin = Inches(1.0)
+        sec.left_margin   = m
+        sec.right_margin  = m
 
     BLACK = RGBColor(0, 0, 0)
 
@@ -1049,25 +1056,50 @@ async def report_download_word(
         pPr.append(bidi)
         para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
-    def apply_font(run, size, bold=False, italic=False, underline=False, caps=False, font_name=None):
-        run.font.name = font_name or _font("body_font")
+    def apply_font(run, size, bold=False, italic=False, underline=False,
+                   caps=False, small_caps=False, font_name=None):
+        name = font_name or body_font
         run.font.size = Pt(size)
         run.font.bold = bold
         run.font.italic = italic
         run.font.underline = underline
         run.font.all_caps = caps
+        run.font.small_caps = small_caps
         run.font.color.rgb = BLACK
+        # Fix: set font for ALL script types including Complex Script (Arabic/Kurdish)
+        rPr = run._r.get_or_add_rPr()
+        rFonts = rPr.find(qn("w:rFonts"))
+        if rFonts is None:
+            rFonts = OxmlElement("w:rFonts")
+            rPr.insert(0, rFonts)
+        rFonts.set(qn("w:ascii"),    name)
+        rFonts.set(qn("w:hAnsi"),    name)
+        rFonts.set(qn("w:cs"),       name)   # ← Critical for Arabic/Kurdish
+        rFonts.set(qn("w:eastAsia"), name)
 
-    def add_bottom_border(para, thick=False):
+    def _para_border(para, sides, sz="12", color="000000", space="4"):
         pPr = para._p.get_or_add_pPr()
         pBdr = OxmlElement("w:pBdr")
-        bottom = OxmlElement("w:bottom")
-        bottom.set(qn("w:val"), "single")
-        bottom.set(qn("w:sz"), "12" if thick else "6")
-        bottom.set(qn("w:space"), "4")
-        bottom.set(qn("w:color"), "000000")
-        pBdr.append(bottom)
+        for side in sides:
+            el = OxmlElement(f"w:{side}")
+            el.set(qn("w:val"),   "single")
+            el.set(qn("w:sz"),    sz)
+            el.set(qn("w:space"), space)
+            el.set(qn("w:color"), color)
+            pBdr.append(el)
         pPr.append(pBdr)
+
+    def apply_h1_border(para):
+        b = tpl["h1_border"]
+        if b == "bottom_thick":      _para_border(para, ["bottom"], sz="24")
+        elif b == "bottom":          _para_border(para, ["bottom"], sz="12")
+        elif b == "top_and_bottom":  _para_border(para, ["top","bottom"], sz="12")
+        elif b == "box":             _para_border(para, ["top","bottom","left","right"], sz="16", space="8")
+
+    def apply_h2_border(para):
+        b = tpl["h2_border"]
+        if b == "bottom":       _para_border(para, ["bottom"], sz="6")
+        elif b == "left_thick": _para_border(para, ["left"], sz="24", space="12")
 
     def add_page_break():
         p = doc.add_paragraph()
@@ -1076,41 +1108,52 @@ async def report_download_word(
         br.set(qn("w:type"), "page")
         run._r.append(br)
 
+    on_cover = True   # True until we hit the first ##
+
     for line in text.split("\n"):
         stripped = line.strip()
 
         if stripped.startswith("# "):
+            # ── Cover title ──────────────────────────────────────────────
             p = doc.add_paragraph()
-            align = WD_ALIGN_PARAGRAPH.RIGHT if is_rtl else (WD_ALIGN_PARAGRAPH.CENTER if tpl["h1_center"] else WD_ALIGN_PARAGRAPH.LEFT)
-            p.alignment = align
-            p.paragraph_format.space_before = Pt(80)
-            p.paragraph_format.space_after = Pt(28)
+            cover_align = WD_ALIGN_PARAGRAPH.RIGHT if is_rtl else (
+                WD_ALIGN_PARAGRAPH.CENTER if tpl["cover_style"] == "centered" else WD_ALIGN_PARAGRAPH.LEFT
+            )
+            p.alignment = cover_align
+            # Push title toward centre of page
+            p.paragraph_format.space_before = Pt(160)
+            p.paragraph_format.space_after  = Pt(32)
             run = p.add_run(stripped[2:])
-            apply_font(run, tpl["h1_size"], bold=tpl["h1_bold"], italic=tpl["h1_italic"], font_name=_font("heading_font"))
-            if tpl["h1_border"]:
-                add_bottom_border(p, thick=True)
+            apply_font(run, tpl["h1_size"], bold=tpl["h1_bold"], italic=tpl["h1_italic"],
+                       font_name=head_font)
+            apply_h1_border(p)
             set_rtl_para(p)
 
         elif stripped.startswith("## "):
+            # ── Section heading — always new page ─────────────────────
             add_page_break()
+            on_cover = False
             p = doc.add_paragraph()
-            align = WD_ALIGN_PARAGRAPH.RIGHT if is_rtl else (WD_ALIGN_PARAGRAPH.CENTER if tpl["h2_center"] else WD_ALIGN_PARAGRAPH.LEFT)
+            align = WD_ALIGN_PARAGRAPH.RIGHT if is_rtl else (
+                WD_ALIGN_PARAGRAPH.CENTER if tpl["h2_center"] else WD_ALIGN_PARAGRAPH.LEFT
+            )
             p.alignment = align
-            p.paragraph_format.space_before = Pt(10)
-            p.paragraph_format.space_after = Pt(6)
+            p.paragraph_format.space_before = Pt(12)
+            p.paragraph_format.space_after  = Pt(8)
             run = p.add_run(stripped[3:])
             apply_font(run, tpl["h2_size"], bold=tpl["h2_bold"], italic=tpl["h2_italic"],
-                       underline=tpl["h2_underline"], caps=tpl["h2_caps"], font_name=_font("heading_font"))
-            if tpl["h2_border"]:
-                add_bottom_border(p)
+                       underline=tpl["h2_underline"], caps=tpl["h2_caps"],
+                       small_caps=tpl["h2_small_caps"], font_name=head_font)
+            apply_h2_border(p)
             set_rtl_para(p)
 
         elif stripped.startswith("### "):
             p = doc.add_paragraph()
-            p.paragraph_format.space_before = Pt(6)
-            p.paragraph_format.space_after = Pt(3)
+            p.paragraph_format.space_before = Pt(8)
+            p.paragraph_format.space_after  = Pt(4)
             run = p.add_run(stripped[4:])
-            apply_font(run, tpl["h3_size"], bold=tpl["h3_bold"], italic=tpl["h3_italic"], font_name=_font("heading_font"))
+            apply_font(run, tpl["h3_size"], bold=tpl["h3_bold"], italic=tpl["h3_italic"],
+                       font_name=head_font)
             set_rtl_para(p)
 
         elif stripped == "" or stripped == "---":
@@ -1119,19 +1162,29 @@ async def report_download_word(
 
         else:
             p = doc.add_paragraph()
-            p.paragraph_format.space_after = Pt(tpl["space_after_pt"])
-            p.paragraph_format.line_spacing = Pt(tpl["line_spacing_pt"])
-            if tpl["first_indent"]:
-                p.paragraph_format.first_line_indent = Inches(0.3)
-            set_rtl_para(p)
-            parts = re.split(r"(\*\*[^*]+\*\*)", stripped)
-            for part in parts:
-                if part.startswith("**") and part.endswith("**"):
-                    run = p.add_run(part[2:-2])
-                    apply_font(run, tpl["body_size"], bold=True)
-                else:
-                    run = p.add_run(part)
-                    apply_font(run, tpl["body_size"])
+            if on_cover:
+                # Cover meta lines (student, course, date) — styled nicely
+                cover_align = WD_ALIGN_PARAGRAPH.RIGHT if is_rtl else (
+                    WD_ALIGN_PARAGRAPH.CENTER if tpl["cover_style"] == "centered" else WD_ALIGN_PARAGRAPH.LEFT
+                )
+                p.alignment = cover_align
+                p.paragraph_format.space_after = Pt(4)
+                run = p.add_run(stripped)
+                apply_font(run, tpl["body_size"] + 1, font_name=body_font)
+            else:
+                p.paragraph_format.space_after   = Pt(tpl["space_after_pt"])
+                p.paragraph_format.line_spacing  = Pt(tpl["line_spacing_pt"])
+                if tpl["first_indent"]:
+                    p.paragraph_format.first_line_indent = Inches(0.3)
+                set_rtl_para(p)
+                parts = re.split(r"(\*\*[^*]+\*\*)", stripped)
+                for part in parts:
+                    if part.startswith("**") and part.endswith("**"):
+                        run = p.add_run(part[2:-2])
+                        apply_font(run, tpl["body_size"], bold=True)
+                    else:
+                        run = p.add_run(part)
+                        apply_font(run, tpl["body_size"])
 
     buf = io.BytesIO()
     doc.save(buf)
