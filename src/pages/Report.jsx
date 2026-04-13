@@ -657,54 +657,6 @@ export default function Report() {
                   />
                 </div>
 
-                {/* Streaming JSON preview */}
-                {streamedText && (
-                  <div className="bg-white rounded-2xl p-6 shadow-xl max-h-[400px] overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
-                    <div className={`text-slate-800 text-sm leading-relaxed space-y-3 ${isRTL ? 'text-right' : ''}`}>
-                      {(() => {
-                        try {
-                          // Try to parse streamedText as JSON
-                          const data = JSON.parse(streamedText)
-                          return (
-                            <>
-                              <h1 className="text-xl font-black border-b pb-2 mb-3" style={{ color: selectedTheme.h1, borderColor: selectedTheme.h2 }}>
-                                {data.title || 'Report'}
-                              </h1>
-                              {data.cover && (
-                                <div className="text-xs space-y-1 text-slate-600">
-                                  {data.cover.student && <p>👤 {data.cover.student}</p>}
-                                  {data.cover.university && <p>🏫 {data.cover.university}</p>}
-                                  {data.cover.instructor && <p>👨‍🏫 {data.cover.instructor}</p>}
-                                  {data.cover.date && <p>📅 {data.cover.date}</p>}
-                                </div>
-                              )}
-                              {data.abstract && (
-                                <div>
-                                  <h2 className="text-base font-bold mt-3 mb-1" style={{ color: selectedTheme.h2 }}>Abstract</h2>
-                                  <p className="text-slate-700 leading-6 text-xs">{data.abstract.substring(0, 200)}...</p>
-                                </div>
-                              )}
-                              {data.sections && data.sections.length > 0 && (
-                                <div>
-                                  <h2 className="text-base font-bold mt-3 mb-2" style={{ color: selectedTheme.h2 }}>Sections</h2>
-                                  <ul className="space-y-1">
-                                    {data.sections.slice(0, 3).map((s, i) => (
-                                      <li key={i} className="text-xs text-slate-600">✓ {s.heading}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                              <span className="inline-block w-1.5 h-4 bg-yellow-400 animate-pulse align-middle mt-2" />
-                            </>
-                          )
-                        } catch (e) {
-                          // If not valid JSON yet, show raw preview
-                          return <p className="text-slate-600 text-xs">جاوەڕێ... (Receiving data...)</p>
-                        }
-                      })()}
-                    </div>
-                  </div>
-                )}
               </motion.div>
             )}
 
