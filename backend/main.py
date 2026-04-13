@@ -676,6 +676,23 @@ async def detect_ai(
     user_id: str = Form(""),
 ):
     import base64, io
+    from supabase import create_client
+    
+    # Pre-check points if user_id is provided
+    if user_id:
+        try:
+            sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
+            profile_res = sb.table("profiles").select("plan, points").eq("id", user_id).single().execute()
+            profile_data = profile_res.data or {}
+            if profile_data.get("plan") != "pro":
+                current_points = profile_data.get("points", 100) or 0
+                if current_points < 15:
+                    raise HTTPException(status_code=402, detail="خاڵەکانت بەش ناکات. (15 XAL پێویستە)")
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[DB] ai-detect pre-check error: {e}")
+
     model = "claude-sonnet-4-6" if use_sonnet == "1" else "claude-haiku-4-5-20251001"
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
@@ -734,14 +751,15 @@ async def detect_ai(
     result = json.loads(raw)
     result["source_type"] = source_type
 
-    # Record usage to DB
+    # Record usage to DB + Deduct points
     if user_id:
         try:
-            from supabase import create_client
             sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
             inp = response.usage.input_tokens or 0
             out = response.usage.output_tokens or 0
             cost_usd = calc_cost_usd(model, inp, out)
+            
+            # Record generation
             sb.table("generations").insert({
                 "user_id": user_id,
                 "prompt": (text or "")[:200] or (file.filename if file else "file"),
@@ -754,8 +772,17 @@ async def detect_ai(
                 "model": model,
                 "cost_usd": cost_usd,
             }).execute()
+
+            # Deduct points if user is not PRO
+            profile_res = sb.table("profiles").select("plan, points").eq("id", user_id).single().execute()
+            profile_data = profile_res.data or {}
+            if profile_data.get("plan") != "pro":
+                current_points = profile_data.get("points", 100) or 0
+                new_points = max(0, current_points - 15)
+                sb.table("profiles").update({"points": new_points}).eq("id", user_id).execute()
+
         except Exception as db_err:
-            print(f"[DB] ai-detect record error: {db_err}")
+            print(f"[DB] ai-detect record/deduction error: {db_err}")
 
     return result
 

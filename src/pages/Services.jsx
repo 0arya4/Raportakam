@@ -230,7 +230,10 @@ export default function Services() {
                           className="absolute top-8 left-0 w-56 bg-slate-900 border border-purple-500/40 rounded-xl p-3 shadow-xl z-50 text-right"
                         >
                           <p className="text-purple-400 font-black text-xs mb-1">AI Detection - ئەی ئای چێک</p>
-                          <p className="text-slate-300 text-xs leading-relaxed">تێکست ، فایل یان نووسینێک بنێرە پێت ئەڵێین بە ڕێژەی چەند دەرەکەوێ کە زیرەکی دەستکردە</p>
+                          <p className="text-slate-300 text-xs leading-relaxed mb-2">تێکست ، فایل یان نووسینێک بنێرە پێت ئەڵێین بە ڕێژەی چەند دەرەکەوێ کە زیرەکی دەستکردە</p>
+                          <div className="flex justify-end">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">نرخ: 15 XAL</span>
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>

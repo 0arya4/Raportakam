@@ -117,7 +117,10 @@ export default function AIDetect() {
               AI Detection · {useSonnet ? 'Sonnet' : 'Haiku'}
             </div>
             <h1 className="text-3xl font-black text-white mb-2">دەستنووس یان AI؟</h1>
-            <p className="text-slate-400 text-sm">بزانە نووسینەکەت دەرەکەوێ کە زیرەکی دەستکردە؟ AI Detection</p>
+            <p className="text-slate-400 text-sm mb-4">بزانە نووسینەکەت دەرەکەوێ کە زیرەکی دەستکردە؟ AI Detection</p>
+            <div className="flex justify-center">
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">نرخ: 15 XAL</span>
+            </div>
           </motion.div>
 
           <AnimatePresence mode="wait">
@@ -181,7 +184,7 @@ export default function AIDetect() {
                       </svg>
                       چاوەڕێ بکە...
                     </span>
-                  ) : 'دەستپێکردن'}
+                  ) : 'دەستپێکردن (15 XAL)'}
                 </button>
               </motion.div>
             ) : (
