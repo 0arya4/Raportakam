@@ -762,113 +762,40 @@ async def detect_ai(
 
 # ── Report Generator ─────────────────────────────────────────────────────────
 
-REPORT_SYSTEM_PROMPT = """You are an expert academic writer specializing in producing high-quality, university-level reports that are clear, formal, well-structured, and free of errors.
+REPORT_SYSTEM = """You are an expert academic writer. Generate complete, polished, university-level academic reports with zero errors.
 
-Your task is to generate a complete academic report based strictly on the user inputs provided below.
+STRICT OUTPUT RULES:
+- Output ONLY the final report — no explanations, no notes, no meta-commentary
+- Use markdown: # for the main title, ## for major sections, ### for subsections, **bold** for key terms
+- Never switch language mid-report
+- If a field is not provided, omit it silently — do not write "N/A"
 
----
+WRITING STANDARDS:
+- Formal academic language throughout
+- Third person only (no "I", "we", "you")
+- No contractions (don't → do not, can't → cannot)
+- Logical paragraph structure with proper transitions (Furthermore, However, Therefore, In contrast)
+- Every paragraph covers one focused idea
+- Vary sentence length and structure — avoid robotic, repetitive phrasing
+- Zero grammar or spelling errors
 
-## 📥 USER INPUTS:
+STRUCTURE (in this order):
+1. # Main Title — large title, followed by cover details (student, course, instructor, date) as plain lines
+2. ## Abstract — only if requested
+3. ## Introduction — context, objectives, scope
+4. ## [Body Sections] — expand each provided key point into a full detailed section
+5. ## Discussion — analysis and implications (skip for Short length)
+6. ## Conclusion — summary and closing remarks
+7. ## References — only if requested, formatted in the specified citation style
 
-Title: {{title}}
-Student Name: {{student_name}}
-University/Course: {{course}}
-Instructor: {{instructor}}
-Date: {{date}}
+LENGTH TARGETS (word count for body text, excluding cover):
+- Short: 500–800 words
+- Medium: 1,000–1,500 words
+- Long: 2,000–3,000 words
 
-Topic: {{topic}}
-Purpose of Report: {{purpose}}
-Main Points / Sections:
-{{points}}
-
-Report Length: {{length}}  (Short / Medium / Long)
-Writing Style: {{style}}  (Simple / Formal Academic / Advanced Academic)
-Research Level: {{research_level}}  (Basic / Medium / Advanced)
-Citation Style: {{citation_style}}  (APA / Harvard / MLA)
-
-Include Abstract: {{include_abstract}} (Yes/No)
-Include References: {{include_references}} (Yes/No)
-
-Language: {{language}}
-
----
-
-## 📤 OUTPUT REQUIREMENTS:
-
-1. FORMAT:
-
-* Generate a complete academic report with the following structure:
-
-  * Title Page
-  * Abstract (only if selected)
-  * Introduction
-  * Main Body (based on provided points)
-  * Discussion (if applicable)
-  * Conclusion
-  * References (only if selected)
-
-2. WRITING STYLE RULES:
-
-* Use formal academic language at all times
-* Write in third person (no "I", "we", "you")
-* Avoid contractions (e.g., don't, can't)
-* Avoid slang or informal phrases
-* Ensure clarity, precision, and professionalism
-
-3. STRUCTURE RULES:
-
-* Each section must have a clear heading
-* Each paragraph should focus on one main idea
-* Ensure logical flow between paragraphs using connectors (e.g., Furthermore, However, Therefore)
-* Expand each main point into a detailed section
-
-4. LENGTH CONTROL:
-
-* Short: concise but complete (~500–800 words)
-* Medium: well-developed (~1000–1500 words)
-* Long: detailed and comprehensive (2000+ words)
-
-5. RESEARCH & CITATIONS:
-
-* If Research Level is Medium or Advanced:
-
-  * Include realistic academic-style in-text citations
-  * Add a properly formatted reference list
-* If Basic:
-
-  * Do NOT include citations
-
-6. ACCURACY & QUALITY:
-
-* Ensure zero grammar or spelling mistakes
-* Avoid repetition
-* Avoid generic filler content
-* Keep content relevant and meaningful
-
-7. HUMAN-LIKE WRITING:
-
-* Ensure the text sounds natural and human-written
-* Vary sentence structure
-* Avoid robotic or repetitive phrasing
-
-8. LANGUAGE:
-
-* Generate the report fully in the selected language
-
----
-
-## ⚠️ IMPORTANT:
-
-* Do NOT explain anything
-* Do NOT include notes or comments
-* Output ONLY the final polished report
-* Ensure it is submission-ready
-
----
-
-## 🚀 BEGIN GENERATION
-
-NOTE: Some inputs are optional. If a field is "N/A", ignore it and do not mention it."""
+CITATION RULES:
+- Basic research level: NO citations, no reference list
+- Medium/Advanced: realistic in-text citations + properly formatted reference list"""
 
 
 class ReportRequest(BaseModel):
@@ -887,32 +814,31 @@ class ReportRequest(BaseModel):
     include_abstract: bool = False
     include_references: bool = True
     language: str = "English"
+    template: str = "classic"
     user_id: str = ""
     plan: str = "free"
 
 
 def build_report_prompt(req: ReportRequest) -> str:
-    prompt = REPORT_SYSTEM_PROMPT
-    replacements = {
-        "{{title}}":            req.title or "N/A",
-        "{{student_name}}":     req.student_name or "N/A",
-        "{{course}}":           req.course or "N/A",
-        "{{instructor}}":       req.instructor or "N/A",
-        "{{date}}":             req.date or "N/A",
-        "{{topic}}":            req.topic,
-        "{{purpose}}":          req.purpose or "N/A",
-        "{{points}}":           req.points or "N/A",
-        "{{length}}":           req.length,
-        "{{style}}":            req.style,
-        "{{research_level}}":   req.research_level,
-        "{{citation_style}}":   ", ".join(req.citation_styles) if req.citation_styles else "APA",
-        "{{include_abstract}}": "Yes" if req.include_abstract else "No",
-        "{{include_references}}": "Yes" if req.include_references else "No",
-        "{{language}}":         req.language,
-    }
-    for k, v in replacements.items():
-        prompt = prompt.replace(k, v)
-    return prompt
+    lines = ["Write a complete academic report with the following specifications:\n"]
+    lines.append(f"Topic: {req.topic}")
+    if req.title:        lines.append(f"Title: {req.title}")
+    if req.student_name: lines.append(f"Student Name: {req.student_name}")
+    if req.course:       lines.append(f"University/Course: {req.course}")
+    if req.instructor:   lines.append(f"Instructor: {req.instructor}")
+    if req.date:         lines.append(f"Date: {req.date}")
+    if req.purpose:      lines.append(f"Purpose: {req.purpose}")
+    if req.points:       lines.append(f"Key Points/Sections:\n{req.points}")
+    lines.append(f"\nLength: {req.length}")
+    lines.append(f"Writing Style: {req.style}")
+    lines.append(f"Research Level: {req.research_level}")
+    if req.research_level != "Basic" and req.citation_styles:
+        lines.append(f"Citation Style: {', '.join(req.citation_styles)}")
+    lines.append(f"Include Abstract: {'Yes' if req.include_abstract else 'No'}")
+    lines.append(f"Include References: {'Yes' if req.include_references else 'No'}")
+    lines.append(f"Language: {req.language}")
+    lines.append("\nGenerate the complete report now.")
+    return "\n".join(lines)
 
 
 def estimate_report_seconds(length: str, is_pro: bool) -> int:
@@ -931,8 +857,10 @@ async def report_stream(req: ReportRequest):
         raise HTTPException(status_code=400, detail="Topic is required")
     prompt = build_report_prompt(req)
     is_pro = req.plan == "pro"
-    model = "claude-sonnet-4-6" if is_pro else "claude-haiku-4-5-20251001"
-    max_tokens = {"Short": 2000, "Medium": 4000, "Long": 8000}.get(req.length, 4000)
+    is_rtl_lang = req.language in ["Kurdish (Sorani)", "Arabic"]
+    # Kurdish & Arabic always use Sonnet for quality; pro users always get Sonnet
+    model = "claude-sonnet-4-6" if (is_pro or is_rtl_lang) else "claude-haiku-4-5-20251001"
+    max_tokens = {"Short": 2000, "Medium": 5000, "Long": 10000}.get(req.length, 5000)
 
     async def event_stream():
         yield f"data: {json.dumps({'stage': 1, 'label': 'شیکردنەوەی بابەت...'})}\n\n"
@@ -948,6 +876,8 @@ async def report_stream(req: ReportRequest):
                 with claude.messages.stream(
                     model=model,
                     max_tokens=max_tokens,
+                    temperature=0.3,
+                    system=REPORT_SYSTEM,
                     messages=[{"role": "user", "content": prompt}]
                 ) as stream:
                     for text in stream.text_stream:
@@ -1015,24 +945,67 @@ async def report_stream(req: ReportRequest):
     )
 
 
+WORD_TEMPLATES = {
+    "classic": {
+        "body_font": "Times New Roman", "heading_font": "Times New Roman",
+        "h1_size": 26, "h2_size": 16, "h3_size": 13, "body_size": 12,
+        "h1_color": (0, 0, 0), "h2_color": (0, 0, 0), "h3_color": (60, 60, 60),
+        "line_spacing_pt": 18,
+    },
+    "modern": {
+        "body_font": "Calibri", "heading_font": "Calibri",
+        "h1_size": 28, "h2_size": 17, "h3_size": 13, "body_size": 11,
+        "h1_color": (31, 73, 125), "h2_color": (46, 116, 181), "h3_color": (70, 130, 180),
+        "line_spacing_pt": 16,
+    },
+    "elegant": {
+        "body_font": "Georgia", "heading_font": "Georgia",
+        "h1_size": 26, "h2_size": 16, "h3_size": 13, "body_size": 12,
+        "h1_color": (60, 20, 100), "h2_color": (90, 42, 130), "h3_color": (120, 70, 160),
+        "line_spacing_pt": 20,
+    },
+    "scientific": {
+        "body_font": "Arial", "heading_font": "Arial",
+        "h1_size": 16, "h2_size": 13, "h3_size": 11, "body_size": 10,
+        "h1_color": (0, 0, 0), "h2_color": (30, 30, 30), "h3_color": (60, 60, 60),
+        "line_spacing_pt": 13,
+    },
+    "minimal": {
+        "body_font": "Calibri", "heading_font": "Calibri",
+        "h1_size": 24, "h2_size": 14, "h3_size": 12, "body_size": 11,
+        "h1_color": (0, 0, 0), "h2_color": (80, 80, 80), "h3_color": (120, 120, 120),
+        "line_spacing_pt": 15,
+    },
+    "kurdish": {
+        "body_font": "Arial", "heading_font": "Arial",
+        "h1_size": 28, "h2_size": 20, "h3_size": 15, "body_size": 14,
+        "h1_color": (92, 51, 23), "h2_color": (123, 69, 19), "h3_color": (150, 100, 50),
+        "line_spacing_pt": 26,
+    },
+}
+
+
 @app.post("/report/download/word")
 async def report_download_word(
     text: str = Form(...),
     filename: str = Form("report"),
     language: str = Form("English"),
+    template: str = Form("classic"),
 ):
     import io
     from docx import Document
     from docx.shared import Pt, Inches, RGBColor
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
 
     is_rtl = any(lang in language.lower() for lang in ["kurdish", "arabic", "sorani", "persian", "فارسی", "عربی", "کوردی"])
+    tpl = WORD_TEMPLATES.get(template, WORD_TEMPLATES["classic"])
 
     doc = Document()
     for section in doc.sections:
-        section.top_margin = Inches(1)
-        section.bottom_margin = Inches(1)
+        section.top_margin = Inches(1.1)
+        section.bottom_margin = Inches(1.1)
         section.left_margin = Inches(1.25)
         section.right_margin = Inches(1.25)
 
@@ -1044,30 +1017,79 @@ async def report_download_word(
         pPr.append(bidi)
         para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
+    def apply_font(run, size, bold=False, color=None, font_name=None):
+        run.font.name = font_name or tpl["body_font"]
+        run.font.size = Pt(size)
+        run.font.bold = bold
+        if color:
+            run.font.color.rgb = RGBColor(*color)
+
+    def add_page_break(doc):
+        p = doc.add_paragraph()
+        run = p.add_run()
+        run.add_break()
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        br = OxmlElement("w:br")
+        br.set(qn("w:type"), "page")
+        run._r.append(br)
+
+    cover_done = False  # True once we've hit the first ## section
+
     for line in text.split("\n"):
         stripped = line.strip()
+
         if stripped.startswith("# "):
-            p = doc.add_heading(stripped[2:], level=1)
-            set_rtl_para(p)
-        elif stripped.startswith("## "):
-            p = doc.add_heading(stripped[3:], level=2)
-            set_rtl_para(p)
-        elif stripped.startswith("### "):
-            p = doc.add_heading(stripped[4:], level=3)
-            set_rtl_para(p)
-        elif stripped == "" or stripped == "---":
-            doc.add_paragraph("")
-        else:
-            # Handle **bold** inline
+            # Cover title — large, centered, bold
             p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_before = Pt(60)
+            p.paragraph_format.space_after = Pt(20)
+            run = p.add_run(stripped[2:])
+            apply_font(run, tpl["h1_size"] + 4, bold=True, color=tpl["h1_color"], font_name=tpl["heading_font"])
+            set_rtl_para(p)
+
+        elif stripped.startswith("## "):
+            # Each major section starts on a new page
+            if cover_done:
+                add_page_break(doc)
+            else:
+                # End of cover page — insert page break before first section
+                add_page_break(doc)
+                cover_done = True
+            p = doc.add_paragraph()
+            p.paragraph_format.space_before = Pt(6)
+            p.paragraph_format.space_after = Pt(4)
+            run = p.add_run(stripped[3:])
+            apply_font(run, tpl["h2_size"], bold=True, color=tpl["h2_color"], font_name=tpl["heading_font"])
+            set_rtl_para(p)
+
+        elif stripped.startswith("### "):
+            p = doc.add_paragraph()
+            p.paragraph_format.space_before = Pt(4)
+            p.paragraph_format.space_after = Pt(2)
+            run = p.add_run(stripped[4:])
+            apply_font(run, tpl["h3_size"], bold=True, color=tpl["h3_color"], font_name=tpl["heading_font"])
+            set_rtl_para(p)
+
+        elif stripped == "" or stripped == "---":
+            p = doc.add_paragraph()
+            p.paragraph_format.space_after = Pt(0)
+
+        else:
+            # Body paragraph with **bold** inline support
+            p = doc.add_paragraph()
+            p.paragraph_format.space_after = Pt(6)
+            p.paragraph_format.line_spacing = Pt(tpl["line_spacing_pt"])
             set_rtl_para(p)
             parts = re.split(r"(\*\*[^*]+\*\*)", stripped)
             for part in parts:
                 if part.startswith("**") and part.endswith("**"):
                     run = p.add_run(part[2:-2])
-                    run.bold = True
+                    apply_font(run, tpl["body_size"], bold=True)
                 else:
-                    p.add_run(part)
+                    run = p.add_run(part)
+                    apply_font(run, tpl["body_size"])
 
     buf = io.BytesIO()
     doc.save(buf)
