@@ -168,8 +168,12 @@ def json_to_word(report_json_str):
     """
     try:
         report_data = json.loads(report_json_str)
-    except json.JSONDecodeError:
-        raise ValueError("Invalid JSON format")
+    except json.JSONDecodeError as e:
+        print(f"[JSON] Decode error: {e}")
+        print(f"[JSON] String length: {len(report_json_str)}")
+        print(f"[JSON] First 200: {report_json_str[:200]}")
+        print(f"[JSON] Last 100: {report_json_str[-100:]}")
+        raise ValueError(f"Invalid JSON format: {str(e)}")
 
     # Create document
     doc = Document()

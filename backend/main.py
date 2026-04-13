@@ -1463,6 +1463,9 @@ async def report_download_word_json(
     """
     try:
         # Convert JSON to Word
+        print(f"[WORD] Received json_data length: {len(json_data)}")
+        print(f"[WORD] First 200 chars: {json_data[:200]}")
+        print(f"[WORD] Last 100 chars: {json_data[-100:]}")
         word_buffer = json_to_word(json_data)
 
         safe = (filename or "report").replace(" ", "_")
