@@ -234,6 +234,10 @@ export default function Report() {
     setError('')
     try {
       // streamedText contains JSON from Claude, send it to backend for conversion
+      console.log('Download: streamedText length =', streamedText.length)
+      console.log('Download: streamedText first 200 chars =', streamedText.substring(0, 200))
+      console.log('Download: streamedText last 100 chars =', streamedText.substring(streamedText.length - 100))
+
       const formData = new FormData()
       formData.append('json_data', streamedText)
       formData.append('filename', form.title || form.topic || 'report')
