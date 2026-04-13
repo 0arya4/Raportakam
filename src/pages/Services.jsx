@@ -21,12 +21,12 @@ const SERVICES = [
   {
     logo: wordLogo,
     title: 'دروستکردنی ڕاپۆرت',
-    desc: 'بەم نزیکانە',
-    color: 'from-slate-500/10 to-slate-600/10',
-    border: 'border-slate-700/40',
-    glow: null,
-    active: false,
-    path: '/create?type=word',
+    desc: 'ڕاپۆرتێکی ئەکادیمی و پڕۆفیشناڵ',
+    color: 'from-blue-500/20 to-indigo-600/20',
+    border: 'border-blue-500/40',
+    glow: 'rgba(59,130,246,0.3)',
+    active: true,
+    path: '/report',
   },
   {
     id: 'ai-detect',

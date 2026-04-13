@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import asyncio
+import threading
 import json
 import os
 import re
@@ -86,7 +87,7 @@ def calc_cost_usd(model: str, inp: int, out: int) -> float:
 
 
 def _calc_xal(req) -> int:
-    cost = 25
+    cost = 30
     s = req.slide_count
     if s >= 6 and s <= 10: cost += 5
     elif s == 15: cost += 8
@@ -316,7 +317,7 @@ def sanitize_js(code: str) -> str:
 
 
 def pick_model_and_tokens(slide_count: int, is_pro: bool, addon_count: int = 0):
-    model = "claude-sonnet-4-6" if is_pro else "claude-haiku-4-5"
+    model = "claude-sonnet-4-6" if is_pro else "claude-haiku-4-5-20251001"
     if slide_count <= 5:    tokens = 10000
     elif slide_count <= 10: tokens = 13000
     elif slide_count <= 15: tokens = 16000
@@ -757,3 +758,314 @@ async def detect_ai(
             print(f"[DB] ai-detect record error: {db_err}")
 
     return result
+
+
+# ── Report Generator ─────────────────────────────────────────────────────────
+
+REPORT_SYSTEM_PROMPT = """You are an expert academic writer specializing in producing high-quality, university-level reports that are clear, formal, well-structured, and free of errors.
+
+Your task is to generate a complete academic report based strictly on the user inputs provided below.
+
+---
+
+## 📥 USER INPUTS:
+
+Title: {{title}}
+Student Name: {{student_name}}
+University/Course: {{course}}
+Instructor: {{instructor}}
+Date: {{date}}
+
+Topic: {{topic}}
+Purpose of Report: {{purpose}}
+Main Points / Sections:
+{{points}}
+
+Report Length: {{length}}  (Short / Medium / Long)
+Writing Style: {{style}}  (Simple / Formal Academic / Advanced Academic)
+Research Level: {{research_level}}  (Basic / Medium / Advanced)
+Citation Style: {{citation_style}}  (APA / Harvard / MLA)
+
+Include Abstract: {{include_abstract}} (Yes/No)
+Include References: {{include_references}} (Yes/No)
+
+Language: {{language}}
+
+---
+
+## 📤 OUTPUT REQUIREMENTS:
+
+1. FORMAT:
+
+* Generate a complete academic report with the following structure:
+
+  * Title Page
+  * Abstract (only if selected)
+  * Introduction
+  * Main Body (based on provided points)
+  * Discussion (if applicable)
+  * Conclusion
+  * References (only if selected)
+
+2. WRITING STYLE RULES:
+
+* Use formal academic language at all times
+* Write in third person (no "I", "we", "you")
+* Avoid contractions (e.g., don't, can't)
+* Avoid slang or informal phrases
+* Ensure clarity, precision, and professionalism
+
+3. STRUCTURE RULES:
+
+* Each section must have a clear heading
+* Each paragraph should focus on one main idea
+* Ensure logical flow between paragraphs using connectors (e.g., Furthermore, However, Therefore)
+* Expand each main point into a detailed section
+
+4. LENGTH CONTROL:
+
+* Short: concise but complete (~500–800 words)
+* Medium: well-developed (~1000–1500 words)
+* Long: detailed and comprehensive (2000+ words)
+
+5. RESEARCH & CITATIONS:
+
+* If Research Level is Medium or Advanced:
+
+  * Include realistic academic-style in-text citations
+  * Add a properly formatted reference list
+* If Basic:
+
+  * Do NOT include citations
+
+6. ACCURACY & QUALITY:
+
+* Ensure zero grammar or spelling mistakes
+* Avoid repetition
+* Avoid generic filler content
+* Keep content relevant and meaningful
+
+7. HUMAN-LIKE WRITING:
+
+* Ensure the text sounds natural and human-written
+* Vary sentence structure
+* Avoid robotic or repetitive phrasing
+
+8. LANGUAGE:
+
+* Generate the report fully in the selected language
+
+---
+
+## ⚠️ IMPORTANT:
+
+* Do NOT explain anything
+* Do NOT include notes or comments
+* Output ONLY the final polished report
+* Ensure it is submission-ready
+
+---
+
+## 🚀 BEGIN GENERATION
+
+NOTE: Some inputs are optional. If a field is "N/A", ignore it and do not mention it."""
+
+
+class ReportRequest(BaseModel):
+    topic: str = ""
+    title: str = ""
+    student_name: str = ""
+    course: str = ""
+    instructor: str = ""
+    date: str = ""
+    purpose: str = ""
+    points: str = ""
+    length: str = "Medium"
+    style: str = "Formal Academic"
+    research_level: str = "Medium"
+    citation_styles: list = ["APA"]
+    include_abstract: bool = False
+    include_references: bool = True
+    language: str = "English"
+    user_id: str = ""
+    plan: str = "free"
+
+
+def build_report_prompt(req: ReportRequest) -> str:
+    prompt = REPORT_SYSTEM_PROMPT
+    replacements = {
+        "{{title}}":            req.title or "N/A",
+        "{{student_name}}":     req.student_name or "N/A",
+        "{{course}}":           req.course or "N/A",
+        "{{instructor}}":       req.instructor or "N/A",
+        "{{date}}":             req.date or "N/A",
+        "{{topic}}":            req.topic,
+        "{{purpose}}":          req.purpose or "N/A",
+        "{{points}}":           req.points or "N/A",
+        "{{length}}":           req.length,
+        "{{style}}":            req.style,
+        "{{research_level}}":   req.research_level,
+        "{{citation_style}}":   ", ".join(req.citation_styles) if req.citation_styles else "APA",
+        "{{include_abstract}}": "Yes" if req.include_abstract else "No",
+        "{{include_references}}": "Yes" if req.include_references else "No",
+        "{{language}}":         req.language,
+    }
+    for k, v in replacements.items():
+        prompt = prompt.replace(k, v)
+    return prompt
+
+
+def estimate_report_seconds(length: str, is_pro: bool) -> int:
+    base = {"Short": 35, "Medium": 65, "Long": 120}.get(length, 65)
+    return int(base * 1.8) if is_pro else base
+
+
+@app.get("/report/estimate")
+async def report_estimate(length: str = "Medium", is_pro: bool = False):
+    return {"seconds": estimate_report_seconds(length, is_pro)}
+
+
+@app.post("/report/stream")
+async def report_stream(req: ReportRequest):
+    if not req.topic.strip():
+        raise HTTPException(status_code=400, detail="Topic is required")
+    prompt = build_report_prompt(req)
+    is_pro = req.plan == "pro"
+    model = "claude-sonnet-4-6" if is_pro else "claude-haiku-4-5-20251001"
+    max_tokens = {"Short": 2000, "Medium": 4000, "Long": 8000}.get(req.length, 4000)
+
+    async def event_stream():
+        queue: asyncio.Queue = asyncio.Queue()
+        loop = asyncio.get_running_loop()
+        inp_tok = [0]
+        out_tok = [0]
+
+        def run_claude():
+            try:
+                with claude.messages.stream(
+                    model=model,
+                    max_tokens=max_tokens,
+                    messages=[{"role": "user", "content": prompt}]
+                ) as stream:
+                    for text in stream.text_stream:
+                        asyncio.run_coroutine_threadsafe(queue.put(("chunk", text)), loop)
+                    usage = stream.get_final_message().usage
+                    inp_tok[0] = usage.input_tokens or 0
+                    out_tok[0] = usage.output_tokens or 0
+                    asyncio.run_coroutine_threadsafe(queue.put(("done", None)), loop)
+            except Exception as e:
+                asyncio.run_coroutine_threadsafe(queue.put(("error", str(e))), loop)
+
+        threading.Thread(target=run_claude, daemon=True).start()
+
+        while True:
+            kind, data = await queue.get()
+            if kind == "chunk":
+                yield f"data: {json.dumps({'chunk': data})}\n\n"
+            elif kind == "done":
+                tokens = inp_tok[0] + out_tok[0]
+                cost = calc_cost_usd(model, inp_tok[0], out_tok[0])
+                if req.user_id:
+                    try:
+                        from supabase import create_client
+                        sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SECRET_KEY"))
+                        sb.table("generations").insert({
+                            "user_id": req.user_id,
+                            "prompt": req.topic[:200],
+                            "output_type": "report",
+                            "status": "done",
+                            "file_name": req.title or req.topic[:50],
+                            "tokens_used": tokens,
+                            "input_tokens": inp_tok[0],
+                            "output_tokens": out_tok[0],
+                            "model": model,
+                            "cost_usd": cost,
+                        }).execute()
+                        if req.plan != "pro":
+                            report_cost = (30
+                                + (2 if req.length == "Long" else 0)
+                                + (2 if req.style == "Advanced Academic" else 0)
+                                + (2 if req.research_level == "Advanced" else 0)
+                                + (2 if req.include_abstract else 0)
+                                + (2 if req.include_references else 0))
+                            profile = sb.table("profiles").select("points").eq("id", req.user_id).single().execute()
+                            current = (profile.data or {}).get("points", 100)
+                            sb.table("profiles").update({"points": max(0, current - report_cost)}).eq("id", req.user_id).execute()
+                    except Exception as db_err:
+                        print(f"[DB] report record error: {db_err}")
+                yield f"data: {json.dumps({'done': True, 'tokens': tokens})}\n\n"
+                break
+            elif kind == "error":
+                yield f"data: {json.dumps({'error': data})}\n\n"
+                break
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/report/download/word")
+async def report_download_word(
+    text: str = Form(...),
+    filename: str = Form("report"),
+    language: str = Form("English"),
+):
+    import io
+    from docx import Document
+    from docx.shared import Pt, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml import OxmlElement
+
+    is_rtl = any(lang in language.lower() for lang in ["kurdish", "arabic", "sorani", "persian", "فارسی", "عربی", "کوردی"])
+
+    doc = Document()
+    for section in doc.sections:
+        section.top_margin = Inches(1)
+        section.bottom_margin = Inches(1)
+        section.left_margin = Inches(1.25)
+        section.right_margin = Inches(1.25)
+
+    def set_rtl_para(para):
+        if not is_rtl:
+            return
+        pPr = para._p.get_or_add_pPr()
+        bidi = OxmlElement("w:bidi")
+        pPr.append(bidi)
+        para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            p = doc.add_heading(stripped[2:], level=1)
+            set_rtl_para(p)
+        elif stripped.startswith("## "):
+            p = doc.add_heading(stripped[3:], level=2)
+            set_rtl_para(p)
+        elif stripped.startswith("### "):
+            p = doc.add_heading(stripped[4:], level=3)
+            set_rtl_para(p)
+        elif stripped == "" or stripped == "---":
+            doc.add_paragraph("")
+        else:
+            # Handle **bold** inline
+            p = doc.add_paragraph()
+            set_rtl_para(p)
+            parts = re.split(r"(\*\*[^*]+\*\*)", stripped)
+            for part in parts:
+                if part.startswith("**") and part.endswith("**"):
+                    run = p.add_run(part[2:-2])
+                    run.bold = True
+                else:
+                    p.add_run(part)
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    safe = (filename or "report").replace(" ", "_")
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{safe}.docx"'},
+    )

@@ -14,6 +14,7 @@ import AuthCallback from './pages/AuthCallback'
 import Services from './pages/Services'
 import Profile from './pages/Profile'
 import AIDetect from './pages/AIDetect'
+import Report from './pages/Report'
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
               </ProtectedRoute>
             } />
             <Route path="/detect" element={<ProtectedRoute><AIDetect /></ProtectedRoute>} />
+            <Route path="/report" element={<ProtectedRoute><Report /></ProtectedRoute>} />
             <Route path="/create" element={
               <ProtectedRoute>
                 <Create />

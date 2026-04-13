@@ -51,7 +51,7 @@ export default function Landing() {
 
             <motion.p initial={{ opacity: 0, y: 20 }} animate={loaded ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.3 }}
               className="text-slate-400 text-lg leading-relaxed mb-10 max-w-md">
-              تەنها <span style={{ color: '#eab308', textShadow: '0 0 12px rgba(234,179,8,0.5)' }}>بیرۆکەکەت بنووسە</span>، ئێمە بۆت دەکەین بە سیمینار یان ڕاپۆرتێکی پڕۆفیشناڵ <span style={{ color: '#eab308', textShadow: '0 0 12px rgba(234,179,8,0.5)' }}>لەگەل جەندەها خزمەتگوزاری تر</span>
+              تەنها <span style={{ color: '#eab308', textShadow: '0 0 12px rgba(234,179,8,0.5)' }}>بیرۆکەکەت بنووسە</span>، ئێمە بۆت دەکەین بە سیمینار یان ڕاپۆرتێکی پڕۆفیشناڵ <span style={{ color: '#eab308', textShadow: '0 0 12px rgba(234,179,8,0.5)' }}>لەگەل چەندین خزمەتگوزاری تر</span>
             </motion.p>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={loaded ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.4 }}

@@ -14,6 +14,9 @@ export default defineConfig({
       '/admin': 'http://localhost:8000',
       '/ai-detect': 'http://localhost:8000',
       '/generation': 'http://localhost:8000',
+      '/report/stream': 'http://localhost:8000',
+      '/report/download': 'http://localhost:8000',
+      '/report/estimate': 'http://localhost:8000',
     }
   }
 })

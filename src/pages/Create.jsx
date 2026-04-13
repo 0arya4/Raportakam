@@ -247,7 +247,7 @@ export default function Create() {
 
               <div className="flex-1 flex flex-col gap-5 mb-8">
                 <input value={form.fileName} onChange={e => set('fileName', e.target.value)}
-                  placeholder="ناوی فایلەکە... (نمونە: ڕاپۆرتی ئاووهەوا)" dir="rtl"
+                  placeholder="ناوی فایل" dir="rtl"
                   className="w-full bg-slate-900 border border-slate-700 focus:border-yellow-500/60 outline-none text-white placeholder-slate-500 px-6 py-5 rounded-2xl text-lg transition" />
 
                 <div className="flex-1 bg-slate-900 border border-slate-700 focus-within:border-yellow-500/60 rounded-2xl p-6 transition-all flex flex-col">
