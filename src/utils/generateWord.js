@@ -1,4 +1,5 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } from 'docx'
+import nrtFontUrl from '../assets/fonts/nrt.ttf.ttf?url'
 
 const TEMPLATES = [
   {
@@ -53,7 +54,9 @@ const TEMPLATES = [
   },
 ]
 
-const KURDISH_FONTS = ['Rabar_022', 'NRT']
+// Internal font family name (from TTF name table: nameId=1)
+const NRT_FONT_NAME = 'NRT Reg'
+const KURDISH_FONTS = [NRT_FONT_NAME]
 
 const hp  = pt => pt * 2          // half-points  (docx font size unit)
 const tw  = pt => pt * 20         // twips        (docx spacing unit)
@@ -78,6 +81,14 @@ export async function generateWordDoc(text, language) {
     ? KURDISH_FONTS[Math.floor(Math.random() * KURDISH_FONTS.length)]
     : tpl.bodyFont
   const headFont = isRTL ? bodyFont : tpl.headFont
+
+  // Embed NRT Reg font so it works on every machine
+  let embeddedFonts = []
+  try {
+    const res = await fetch(nrtFontUrl)
+    const fontData = await res.arrayBuffer()
+    embeddedFonts = [{ name: NRT_FONT_NAME, data: fontData }]
+  } catch {}
 
   const align = (center) =>
     isRTL ? AlignmentType.RIGHT : (center ? AlignmentType.CENTER : AlignmentType.LEFT)
@@ -168,6 +179,7 @@ export async function generateWordDoc(text, language) {
 
   const m = inTw(tpl.marginIn)
   const doc = new Document({
+    fonts: embeddedFonts,
     sections: [{
       properties: {
         page: { margin: { top: inTw(1.0), bottom: inTw(1.0), left: m, right: m } },
