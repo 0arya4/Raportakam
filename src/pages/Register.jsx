@@ -4,6 +4,47 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import logo from '../assets/logo.png.png'
 
+const BLOCKED_DOMAINS = new Set([
+  'mailinator.com','tempmail.com','guerrillamail.com','10minutemail.com','throwam.com',
+  'sharklasers.com','guerrillamailblock.com','grr.la','guerrillamail.info','spam4.me',
+  'yopmail.com','yopmail.fr','cool.fr.nf','jetable.fr.nf','nospam.ze.tc','nomail.xl.cx',
+  'mega.zik.dj','speed.1s.fr','courriel.fr.nf','moncourrier.fr.nf','monemail.fr.nf',
+  'monmail.fr.nf','trashmail.com','trashmail.me','trashmail.net','dispostable.com',
+  'mailnull.com','spamgourmet.com','spamgourmet.net','spamgourmet.org','spamgourmet.net',
+  'maildrop.cc','spamfree24.org','spamfree.eu','binkmail.com','bob.email','clrmail.com',
+  'discard.email','discardmail.com','discardmail.de','fakeinbox.com','filzmail.com',
+  'gowikibooks.com','gowikicampus.com','gowikipedia.com','gowikifilms.com','gowikimusic.com',
+  'gowikinetwork.com','gowikitravel.com','inboxalias.com','kasmail.com','lol.ovpn.to',
+  'mailin8r.com','mailme.lv','mailnew.com','mailscrap.com','mailsiphon.com','mailtemp.info',
+  'mailzilla.com','mbx.cc','messagebeamer.de','mobi.web.id','mt2009.com','mx0.wwwnew.eu',
+  'mycleaninbox.net','netmails.com','netmails.net','no-spam.ws','nobulk.com',
+  'noclickemail.com','nogmailspam.info','nospamfor.us','nospamthanks.info','notmailinator.com',
+  'nowmymail.com','oneoffmail.com','onewaymail.com','pjjkp.com','put2.net','reallymymail.com',
+  'rtrtr.com','s0ny.net','safe-mail.net','sneakemail.com','sofort-mail.de','spam.la',
+  'spamavert.com','spambob.com','spambob.net','spambob.org','spambotshere.com',
+  'spamcowboy.com','spamcowboy.net','spamcowboy.org','spamday.com','spamex.com',
+  'spamgoes.in','spamhereplease.com','spamhole.com','spamify.com','spaminator.de',
+  'spaminmotion.com','spamkill.info','spaml.com','spaml.de','spammotel.com',
+  'spamoff.de','spamslicer.com','spamspot.com','spamthis.co.uk','spamthisplease.com',
+  'spamtrail.com','supergreatmail.com','suremail.info','tempalias.com','tempe-mail.com',
+  'tempemail.biz','tempemail.com','tempemail.net','tempinbox.com','tempinbox.co.uk',
+  'tempmail.eu','tempomail.fr','temporaryemail.net','temporaryforwarding.com',
+  'temporaryinbox.com','thanksnospam.info','throwam.com','throwaway.email',
+  'trbvm.com','uggsrock.com','uroid.com','veryrealemail.com','viditag.com',
+  'wegwerfemail.de','wetrainbayarea.com','willhackforfood.biz','willselldrugs.com',
+  'wmail.cf','wronghead.com','wuzupmail.net','www.e4ward.com','xagloo.com','xemaps.com',
+  'xents.com','xmaily.com','xoxy.net','xyzfree.net','yapped.net','yeah.net',
+  'yep.it','youmail.ga','ypmail.webarnak.fr.eu.org','yuoia.com','z1p.biz',
+  'zippymail.info','zoemail.org','zomg.info',
+  'bpotogo.com','lealking.com','shouxs.com','txcct.com','bheps.com','vomoto.com',
+  'voteos.com','byom.de','temp-mail.org','tempmail.org','tmpmail.org',
+])
+
+const isDisposable = (email) => {
+  const domain = email.split('@')[1]?.toLowerCase()
+  return domain ? BLOCKED_DOMAINS.has(domain) : false
+}
+
 export default function Register() {
   const navigate = useNavigate()
   const { signUp } = useAuth()
@@ -17,6 +58,7 @@ export default function Register() {
     setError('')
     if (form.password !== form.confirm) return setError('وشەی نهێنییەکان یەک نین')
     if (form.password.length < 6) return setError('کەمەخەم ٦ پیت')
+    if (isDisposable(form.email)) return setError('ئیمەیڵی وەرگرتنەوەی کاتی قبووڵ نाکرێت، تکایە ئیمەیڵی ڕەسەن بەکاربهێنە')
     setLoading(true)
     const { error } = await signUp(form.email, form.password, form.fullName)
     setLoading(false)
