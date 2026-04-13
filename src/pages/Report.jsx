@@ -65,6 +65,7 @@ export default function Report() {
   const [elapsed, setElapsed] = useState(0)
   const [estimate, setEstimate] = useState(null)
   const [downloadingWord, setDownloadingWord] = useState(false)
+  const [downloadUrl, setDownloadUrl] = useState(null)
   const [currentStage, setCurrentStage] = useState(0)
   const [selectedTheme, setSelectedTheme] = useState(() => THEMES[Math.floor(Math.random() * THEMES.length)])
   const [selectedCoverStyle, setSelectedCoverStyle] = useState(() => COVER_STYLES[Math.floor(Math.random() * COVER_STYLES.length)])
@@ -199,6 +200,7 @@ export default function Report() {
             // Handle download URL (report Word file)
             if (data.url) {
               const fullUrl = `${data.url}?name=${encodeURIComponent(form.title || form.topic || 'report')}`
+              setDownloadUrl(fullUrl)
               setCurrentStage(4)
               setState('done')
               // Auto-download immediately
@@ -701,10 +703,21 @@ export default function Report() {
                     </svg>
                     ڕاپۆرتەکە ئامادەیە و داگری کرایەوە
                   </span>
-                  <button onClick={() => { setState('form'); setStreamedText(''); setCurrentStage(0) }}
-                    className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition">
-                    نوێ
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {downloadUrl && (
+                      <a href={downloadUrl} download={`${(form.title || form.topic || 'report').replace(/\s+/g, '_')}.docx`}
+                        className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold px-3 py-2 rounded-xl transition">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Word
+                      </a>
+                    )}
+                    <button onClick={() => { setState('form'); setStreamedText(''); setCurrentStage(0); setDownloadUrl(null) }}
+                      className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition">
+                      نوێ
+                    </button>
+                  </div>
                 </div>
 
 
