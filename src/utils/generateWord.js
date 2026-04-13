@@ -1,182 +1,222 @@
-import { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } from 'docx'
+import {
+  Document, Packer, Paragraph, TextRun,
+  AlignmentType, BorderStyle, Header, Footer, PageNumber,
+} from 'docx'
 
-const TEMPLATES = [
-  {
-    id: 'grand',
-    bodyFont: 'Times New Roman', headFont: 'Times New Roman',
-    h1Size: 48, h2Size: 20, h3Size: 15, bodySize: 13,
-    h1Bold: true,  h2Bold: true,  h3Bold: true,
-    h1Center: true, h2Center: false,
-    h2Underline: true, h2AllCaps: false, h2SmallCaps: false,
-    h1Border: 'bottom_thick', h2Border: null,
-    lineSpacing: 360, spaceAfter: 200, marginIn: 1.25, firstIndent: false,
-  },
-  {
-    id: 'modern',
-    bodyFont: 'Calibri', headFont: 'Calibri',
-    h1Size: 44, h2Size: 16, h3Size: 13, bodySize: 12,
-    h1Bold: true,  h2Bold: true,  h3Bold: false,
-    h1Center: true, h2Center: false,
-    h2Underline: false, h2AllCaps: true, h2SmallCaps: false,
-    h1Border: null, h2Border: 'left_thick',
-    lineSpacing: 240, spaceAfter: 140, marginIn: 1.0, firstIndent: false,
-  },
-  {
-    id: 'elegant',
-    bodyFont: 'Georgia', headFont: 'Georgia',
-    h1Size: 46, h2Size: 20, h3Size: 15, bodySize: 13,
-    h1Bold: true,  h2Bold: true,  h3Bold: false,
-    h1Center: true, h2Center: true,
-    h2Underline: false, h2AllCaps: false, h2SmallCaps: false,
-    h1Border: 'top_and_bottom', h2Border: 'bottom',
-    lineSpacing: 480, spaceAfter: 240, marginIn: 1.5, firstIndent: true,
-  },
-  {
-    id: 'technical',
-    bodyFont: 'Arial', headFont: 'Arial',
-    h1Size: 36, h2Size: 14, h3Size: 12, bodySize: 11,
-    h1Bold: true,  h2Bold: true,  h3Bold: true,
-    h1Center: false, h2Center: false,
-    h2Underline: false, h2AllCaps: false, h2SmallCaps: true,
-    h1Border: 'bottom', h2Border: null,
-    lineSpacing: 240, spaceAfter: 120, marginIn: 1.0, firstIndent: false,
-  },
-  {
-    id: 'luxury',
-    bodyFont: 'Calibri', headFont: 'Calibri',
-    h1Size: 52, h2Size: 17, h3Size: 13, bodySize: 12,
-    h1Bold: true,  h2Bold: false, h3Bold: false,
-    h1Center: true, h2Center: false,
-    h2Underline: false, h2AllCaps: false, h2SmallCaps: false,
-    h1Border: 'box', h2Border: 'bottom',
-    lineSpacing: 360, spaceAfter: 220, marginIn: 1.4, firstIndent: false,
-  },
-]
+// ── Color palette ──────────────────────────────────────────────────────────
+const DARK_BLUE  = '1F3864'   // headings
+const MID_BLUE   = '2F5496'   // h2 accent line
+const DARK_GRAY  = '404040'   // h3 / meta
+const BLACK      = '000000'   // body text
+const RULE_GRAY  = 'CCCCCC'   // header/footer thin lines
 
-// Internal font family name (from TTF name table: nameId=1)
-const NRT_FONT_NAME = 'NRT Reg'
-const KURDISH_FONTS = [NRT_FONT_NAME]
+// ── Unit helpers ──────────────────────────────────────────────────────────
+const hp   = pt => pt * 2             // half-points  (docx font size)
+const tw   = pt => pt * 20            // twips        (docx spacing)
+const inTw = i  => Math.round(i * 1440) // inches → twips
 
-const hp  = pt => pt * 2          // half-points  (docx font size unit)
-const tw  = pt => pt * 20         // twips        (docx spacing unit)
-const inTw = i => Math.round(i * 1440) // inches → twips
-
-const BORDER_DEFS = {
-  bottom_thick:   () => ({ bottom: { style: BorderStyle.THICK,  size: 24, color: '000000', space: 4 } }),
-  bottom:         () => ({ bottom: { style: BorderStyle.SINGLE, size: 8,  color: '000000', space: 4 } }),
-  top_and_bottom: () => ({ top:    { style: BorderStyle.SINGLE, size: 8,  color: '000000', space: 4 },
-                           bottom: { style: BorderStyle.SINGLE, size: 8,  color: '000000', space: 4 } }),
-  box:            () => ({ top:    { style: BorderStyle.THICK,  size: 24, color: '000000', space: 4 },
-                           bottom: { style: BorderStyle.THICK,  size: 24, color: '000000', space: 4 },
-                           left:   { style: BorderStyle.THICK,  size: 24, color: '000000', space: 4 },
-                           right:  { style: BorderStyle.THICK,  size: 24, color: '000000', space: 4 } }),
-  left_thick:     () => ({ left:   { style: BorderStyle.THICK,  size: 24, color: '000000', space: 4 } }),
-}
+// ── Font sizes (pt) ───────────────────────────────────────────────────────
+const COVER_TITLE  = 26
+const COVER_META   = 12
+const H2_SIZE      = 16
+const H3_SIZE      = 13
+const BODY_SIZE    = 12
+const TINY         = 9     // header / footer text
 
 export async function generateWordDoc(text, language) {
   const isRTL = /kurdish|arabic|sorani/i.test(language)
-  const tpl = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)]
-  const bodyFont = isRTL
-    ? KURDISH_FONTS[Math.floor(Math.random() * KURDISH_FONTS.length)]
-    : tpl.bodyFont
-  const headFont = isRTL ? bodyFont : tpl.headFont
 
+  // Body: Times New Roman for Latin, NRT Reg for Kurdish/Arabic
+  const bodyFont = isRTL ? 'NRT Reg' : 'Times New Roman'
+  const headFont = isRTL ? 'NRT Reg' : 'Calibri'
 
-  const align = (center) =>
-    isRTL ? AlignmentType.RIGHT : (center ? AlignmentType.CENTER : AlignmentType.LEFT)
+  // Body alignment: RTL → right; Latin → justified
+  const bodyAlign = isRTL ? AlignmentType.RIGHT : AlignmentType.JUSTIFIED
+  const headAlign = isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT
 
-  const mkRun = (t, opts = {}) => new TextRun({
-    text: t,
-    size:       hp(opts.size ?? tpl.bodySize),
-    bold:       opts.bold      ?? false,
-    italic:     opts.italic    ?? false,
-    underline:  opts.underline ? {} : undefined,
-    allCaps:    opts.allCaps   ?? false,
-    smallCaps:  opts.smallCaps ?? false,
-    font:       { name: opts.font ?? bodyFont, cs: opts.font ?? bodyFont },
-    color:      '000000',
-    rightToLeft: isRTL,
-  })
+  // ── Helper: build a TextRun ────────────────────────────────────────────
+  const run = (t, { size = BODY_SIZE, bold = false, italic = false,
+                    color = BLACK, font = bodyFont } = {}) =>
+    new TextRun({
+      text: t,
+      size:       hp(size),
+      bold,
+      italic,
+      color,
+      font:       { name: font, cs: font },
+      rightToLeft: isRTL,
+    })
 
-  const borderOf = (type) => type ? (BORDER_DEFS[type]?.() ?? undefined) : undefined
+  // ── Helper: thin border rule ───────────────────────────────────────────
+  const rule = (side, color = RULE_GRAY, sz = 4) =>
+    ({ [side]: { style: BorderStyle.SINGLE, size: sz, color, space: 4 } })
 
-  const children = []
-  let onCover = true
+  // ── Parse source markdown ──────────────────────────────────────────────
+  const lines = text.split('\n')
 
-  for (const raw of text.split('\n')) {
+  // Extract title for the running header
+  let reportTitle = ''
+  for (const l of lines) {
+    if (l.startsWith('# ')) { reportTitle = l.slice(2).trim(); break }
+  }
+
+  // ── Build inline bold spans from **text** ─────────────────────────────
+  const bodyRuns = (line) =>
+    line.split(/(\*\*[^*]+\*\*)/).map(p =>
+      p.startsWith('**') && p.endsWith('**')
+        ? run(p.slice(2, -2), { bold: true })
+        : run(p)
+    )
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  SECTION 1 — Cover page
+  // ══════════════════════════════════════════════════════════════════════
+  const coverChildren = []
+
+  // Push title ~⅓ down the page
+  coverChildren.push(new Paragraph({ spacing: { before: tw(140), after: 0 } }))
+
+  let pastTitle = false
+  let reachedFirstSection = false
+
+  for (const raw of lines) {
+    if (reachedFirstSection) break
     const line = raw.trim()
 
     if (line.startsWith('# ')) {
-      // ── Cover title
-      children.push(new Paragraph({
-        spacing:     { before: tw(160), after: tw(32) },
-        alignment:   isRTL ? AlignmentType.RIGHT : AlignmentType.CENTER,
-        border:      borderOf(tpl.h1Border),
+      // ── Main title
+      coverChildren.push(new Paragraph({
+        alignment:   AlignmentType.CENTER,
+        spacing:     { before: 0, after: tw(6) },
+        border:      rule('bottom', DARK_BLUE, 18),
         bidirectional: isRTL,
-        children:    [mkRun(line.slice(2), { size: tpl.h1Size, bold: tpl.h1Bold, font: headFont })],
+        children:    [run(line.slice(2), { size: COVER_TITLE, bold: true, color: DARK_BLUE, font: headFont })],
       }))
+      // Spacer after title rule
+      coverChildren.push(new Paragraph({ spacing: { before: 0, after: tw(28) } }))
+      pastTitle = true
 
     } else if (line.startsWith('## ')) {
-      // ── Section heading — forces page break
-      onCover = false
-      children.push(new Paragraph({
-        pageBreakBefore: true,
-        spacing:     { before: tw(12), after: tw(8) },
-        alignment:   align(tpl.h2Center),
-        border:      borderOf(tpl.h2Border),
-        bidirectional: isRTL,
-        children:    [mkRun(line.slice(3), {
-          size: tpl.h2Size, bold: tpl.h2Bold,
-          underline: tpl.h2Underline, allCaps: tpl.h2AllCaps, smallCaps: tpl.h2SmallCaps,
-          font: headFont,
-        })],
-      }))
+      reachedFirstSection = true
 
-    } else if (line.startsWith('### ')) {
-      children.push(new Paragraph({
-        spacing:     { before: tw(8), after: tw(4) },
-        alignment:   isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT,
+    } else if (pastTitle && line) {
+      // ── Meta line (student, course, instructor, date)
+      coverChildren.push(new Paragraph({
+        alignment:   AlignmentType.CENTER,
+        spacing:     { before: 0, after: tw(5) },
         bidirectional: isRTL,
-        children:    [mkRun(line.slice(4), { size: tpl.h3Size, bold: tpl.h3Bold, font: headFont })],
-      }))
-
-    } else if (line === '' || line === '---') {
-      children.push(new Paragraph({ spacing: { after: 0 } }))
-
-    } else if (onCover) {
-      // ── Cover meta lines (student, course, date…)
-      children.push(new Paragraph({
-        spacing:     { after: tw(4) },
-        alignment:   isRTL ? AlignmentType.RIGHT : AlignmentType.CENTER,
-        bidirectional: isRTL,
-        children:    [mkRun(line, { size: tpl.bodySize + 1 })],
-      }))
-
-    } else {
-      // ── Body paragraph (handles **bold** spans)
-      const parts = line.split(/(\*\*[^*]+\*\*)/)
-      children.push(new Paragraph({
-        spacing:     { after: tpl.spaceAfter, line: tpl.lineSpacing, lineRule: 'auto' },
-        alignment:   isRTL ? AlignmentType.RIGHT : AlignmentType.JUSTIFIED,
-        bidirectional: isRTL,
-        indent:      tpl.firstIndent ? { firstLine: 432 } : undefined,
-        children:    parts.map(p =>
-          p.startsWith('**') && p.endsWith('**')
-            ? mkRun(p.slice(2, -2), { size: tpl.bodySize, bold: true })
-            : mkRun(p, { size: tpl.bodySize })
-        ),
+        children:    [run(line, { size: COVER_META, color: DARK_GRAY, font: headFont })],
       }))
     }
   }
 
-  const m = inTw(tpl.marginIn)
+  // ══════════════════════════════════════════════════════════════════════
+  //  SECTION 2 — Body (header + footer + content)
+  // ══════════════════════════════════════════════════════════════════════
+  const bodyChildren = []
+  let inBody = false
+
+  for (const raw of lines) {
+    const line = raw.trim()
+
+    if (line.startsWith('# ')) continue   // cover-only
+
+    if (line.startsWith('## ')) {
+      inBody = true
+      bodyChildren.push(new Paragraph({
+        pageBreakBefore: true,
+        alignment:   headAlign,
+        spacing:     { before: tw(4), after: tw(14) },
+        border:      rule('bottom', MID_BLUE, 10),
+        bidirectional: isRTL,
+        children:    [run(line.slice(3), { size: H2_SIZE, bold: true, color: DARK_BLUE, font: headFont })],
+      }))
+
+    } else if (line.startsWith('### ')) {
+      bodyChildren.push(new Paragraph({
+        alignment:   headAlign,
+        spacing:     { before: tw(12), after: tw(4) },
+        bidirectional: isRTL,
+        children:    [run(line.slice(4), { size: H3_SIZE, bold: true, color: DARK_GRAY, font: headFont })],
+      }))
+
+    } else if (line.startsWith('#### ')) {
+      bodyChildren.push(new Paragraph({
+        alignment:   headAlign,
+        spacing:     { before: tw(8), after: tw(2) },
+        bidirectional: isRTL,
+        children:    [run(line.slice(5), { bold: true, italic: true, color: DARK_GRAY })],
+      }))
+
+    } else if (line === '' || line === '---') {
+      if (inBody) bodyChildren.push(new Paragraph({ spacing: { after: 0 } }))
+
+    } else if (inBody) {
+      bodyChildren.push(new Paragraph({
+        alignment:   bodyAlign,
+        spacing:     { after: tw(6), line: 360, lineRule: 'auto' }, // 1.5× spacing
+        bidirectional: isRTL,
+        children:    bodyRuns(line),
+      }))
+    }
+  }
+
+  // ── Running header ─────────────────────────────────────────────────────
+  const pageHeader = new Header({
+    children: [
+      new Paragraph({
+        alignment:   isRTL ? AlignmentType.LEFT : AlignmentType.RIGHT,
+        border:      rule('bottom'),
+        spacing:     { after: tw(4) },
+        children:    [new TextRun({
+          text:  reportTitle,
+          italic: true,
+          size:  hp(TINY),
+          color: '888888',
+          font:  { name: headFont, cs: headFont },
+        })],
+      }),
+    ],
+  })
+
+  // ── Page number footer ────────────────────────────────────────────────
+  const pageFooter = new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        border:    rule('top'),
+        spacing:   { before: tw(4) },
+        children:  [new TextRun({
+          children: [PageNumber.CURRENT],
+          size:  hp(TINY),
+          color: '888888',
+          font:  { name: headFont, cs: headFont },
+        })],
+      }),
+    ],
+  })
+
+  const margin = inTw(1.0)
+
   const doc = new Document({
-    sections: [{
-      properties: {
-        page: { margin: { top: inTw(1.0), bottom: inTw(1.0), left: m, right: m } },
+    sections: [
+      // Cover — no header/footer
+      {
+        properties: {
+          page: { margin: { top: margin, bottom: margin, left: margin, right: margin } },
+        },
+        children: coverChildren,
       },
-      children,
-    }],
+      // Body — with header and page numbers
+      {
+        properties: {
+          page: { margin: { top: margin, bottom: inTw(1.2), left: margin, right: margin } },
+        },
+        headers: { default: pageHeader },
+        footers: { default: pageFooter },
+        children: bodyChildren,
+      },
+    ],
   })
 
   return Packer.toBlob(doc)
