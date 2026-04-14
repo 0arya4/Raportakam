@@ -65,7 +65,7 @@ export default function Report() {
   const [elapsed, setElapsed] = useState(0)
   const [estimate, setEstimate] = useState(null)
   const [downloadingWord, setDownloadingWord] = useState(false)
-  const [downloadUrl, setDownloadUrl] = useState(null)
+  // downloadUrl removed — downloads now go through backend endpoint
   const [currentStage, setCurrentStage] = useState(0)
   const [selectedTheme, setSelectedTheme] = useState(() => THEMES[Math.floor(Math.random() * THEMES.length)])
   const [selectedCoverStyle, setSelectedCoverStyle] = useState(() => COVER_STYLES[Math.floor(Math.random() * COVER_STYLES.length)])
@@ -197,37 +197,35 @@ export default function Report() {
               textRef.current = data.final_json
               setStreamedText(data.final_json)
             }
-            // Handle download URL (report Word file)
-            if (data.url) {
-              const fullUrl = `${data.url}?name=${encodeURIComponent(form.title || form.topic || 'report')}`
-              setDownloadUrl(fullUrl)
-              setCurrentStage(4)
-              setState('done')
-              // Auto-download immediately
-              try {
-                const a = document.createElement('a')
-                a.href = fullUrl
-                a.download = `${(form.title || form.topic || 'report').replace(/\s+/g, '_')}.docx`
-                a.style.display = 'none'
-                document.body.appendChild(a)
-                a.click()
-                setTimeout(() => document.body.removeChild(a), 200)
-              } catch (_) {}
-              if (user) {
-                const { data: p } = await supabase.from('profiles').select('points').eq('id', user.id).single()
-                if (p) setProfile(prev => ({ ...prev, points: p.points }))
-              }
-              setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
-              gotDone = true
-            }
             if (data.done) {
               if (!gotDone) {
                 gotDone = true
                 clearInterval(timerRef.current)
                 clearTimeout(updateTimerRef.current)
-                setStreamedText(textRef.current)
+                // Use final_json if available, otherwise use accumulated text
+                const jsonText = data.final_json || textRef.current
+                textRef.current = jsonText
+                setStreamedText(jsonText)
                 setCurrentStage(4)
                 setState('done')
+                // Auto-download Word via backend endpoint
+                try {
+                  const fd = new FormData()
+                  fd.append('json_data', jsonText)
+                  fd.append('filename', form.title || form.topic || 'report')
+                  const wordRes = await fetch(`${API_URL}/report/download/word/json`, { method: 'POST', body: fd })
+                  if (wordRes.ok) {
+                    const blob = await wordRes.blob()
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `${(form.title || form.topic || 'report').replace(/\s+/g, '_')}.docx`
+                    a.style.display = 'none'
+                    document.body.appendChild(a)
+                    a.click()
+                    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url) }, 200)
+                  }
+                } catch (_) {}
                 if (user) {
                   const { data: p } = await supabase.from('profiles').select('points').eq('id', user.id).single()
                   if (p) setProfile(prev => ({ ...prev, points: p.points }))
@@ -704,16 +702,14 @@ export default function Report() {
                     ڕاپۆرتەکە ئامادەیە و داگری کرایەوە
                   </span>
                   <div className="flex items-center gap-2">
-                    {downloadUrl && (
-                      <a href={downloadUrl} download={`${(form.title || form.topic || 'report').replace(/\s+/g, '_')}.docx`}
-                        className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold px-3 py-2 rounded-xl transition">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Word
-                      </a>
-                    )}
-                    <button onClick={() => { setState('form'); setStreamedText(''); setCurrentStage(0); setDownloadUrl(null) }}
+                    <button onClick={handleDownloadWord} disabled={downloadingWord}
+                      className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold px-3 py-2 rounded-xl transition disabled:opacity-50">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      {downloadingWord ? 'چاوەڕوان بە...' : 'داگرتنی Word'}
+                    </button>
+                    <button onClick={() => { setState('form'); setStreamedText(''); setCurrentStage(0) }}
                       className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition">
                       نوێ
                     </button>

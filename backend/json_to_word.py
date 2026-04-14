@@ -27,6 +27,9 @@ def add_heading_with_label(doc, text, level):
 
     # Add heading with appropriate style
     heading = doc.add_heading(text, level=level)
+    # Set heading color to black
+    for run in heading.runs:
+        run.font.color.rgb = RGBColor(0, 0, 0)
     return heading
 
 
@@ -40,7 +43,7 @@ def add_table_to_doc(doc, table_data):
 
     # Create table (rows = data rows + 1 header row)
     table = doc.add_table(rows=len(rows) + 1, cols=len(headers))
-    table.style = "Light Grid Accent 1"
+    table.style = "Table Grid"
 
     # Add headers
     header_cells = table.rows[0].cells
@@ -53,9 +56,9 @@ def add_table_to_doc(doc, table_data):
                 run.font.color.rgb = RGBColor(255, 255, 255)
             paragraph_format = paragraph.paragraph_format
             paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        # Header background color
+        # Header background color — black
         shading_elm = OxmlElement("w:shd")
-        shading_elm.set(qn("w:fill"), "366092")  # Dark blue
+        shading_elm.set(qn("w:fill"), "000000")
         header_cells[i]._element.get_or_add_tcPr().append(shading_elm)
 
     # Add data rows
@@ -139,11 +142,18 @@ def add_chart_description_to_doc(doc, chart_data):
     # Add data representation
     if labels and values:
         data_table = doc.add_table(rows=len(labels) + 1, cols=2)
-        data_table.style = "Light Grid Accent 1"
+        data_table.style = "Table Grid"
 
         # Headers
-        data_table.rows[0].cells[0].text = "Category"
-        data_table.rows[0].cells[1].text = "Value"
+        for cell_idx, header_text in enumerate(["Category", "Value"]):
+            data_table.rows[0].cells[cell_idx].text = header_text
+            for paragraph in data_table.rows[0].cells[cell_idx].paragraphs:
+                for run in paragraph.runs:
+                    run.font.bold = True
+                    run.font.color.rgb = RGBColor(255, 255, 255)
+            shading_elm = OxmlElement("w:shd")
+            shading_elm.set(qn("w:fill"), "000000")
+            data_table.rows[0].cells[cell_idx]._element.get_or_add_tcPr().append(shading_elm)
 
         # Data
         for i, (label, value) in enumerate(zip(labels, values)):
@@ -174,25 +184,26 @@ def json_to_word(report_json_str):
         print(f"[JSON] First 200: {report_json_str[:200]}")
         print(f"[JSON] Last 100: {report_json_str[-100:]}")
 
-        # Try to fix common JSON issues
-        try:
-            # Try removing trailing incomplete data
-            if len(report_json_str) > 100:
-                # Find last complete object/array and truncate there
-                last_close = max(
-                    report_json_str.rfind('}'),
-                    report_json_str.rfind(']')
-                )
-                if last_close > 100:
-                    fixed_json = report_json_str[:last_close + 1]
-                    print(f"[JSON] Trying truncated version (length {len(fixed_json)})")
-                    report_data = json.loads(fixed_json)
-                    print(f"[JSON] Successfully parsed truncated JSON")
-                else:
-                    raise ValueError(f"Invalid JSON format: {str(e)}")
-            else:
-                raise ValueError(f"Invalid JSON format: {str(e)}")
-        except Exception as fix_err:
+        # Try progressively aggressive truncation to recover valid JSON
+        report_data = None
+        if len(report_json_str) > 100:
+            # Strategy: walk backwards from the end, try closing brackets
+            # First strip any unterminated string by removing chars after last complete line
+            lines = report_json_str.split('\n')
+            for trim_count in range(1, min(len(lines), 50)):
+                candidate = '\n'.join(lines[:len(lines) - trim_count]).rstrip().rstrip(',')
+                # Count open/close braces and brackets to close them
+                open_braces = candidate.count('{') - candidate.count('}')
+                open_brackets = candidate.count('[') - candidate.count(']')
+                closer = ']' * max(0, open_brackets) + '}' * max(0, open_braces)
+                attempt = candidate + closer
+                try:
+                    report_data = json.loads(attempt)
+                    print(f"[JSON] Recovered by trimming {trim_count} lines and closing {len(closer)} brackets")
+                    break
+                except json.JSONDecodeError:
+                    continue
+        if report_data is None:
             raise ValueError(f"Invalid JSON format: {str(e)} (could not recover)")
 
     # Create document
@@ -210,65 +221,62 @@ def json_to_word(report_json_str):
     cover_data = report_data.get("cover", {})
     title = report_data.get("title", "Academic Report")
 
-    # Add spacing
-    for _ in range(4):
-        doc.add_paragraph()
+    doc.add_paragraph()
 
     # Title
     title_para = doc.add_heading(title, level=0)
     title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    for run in title_para.runs:
+        run.font.color.rgb = RGBColor(0, 0, 0)
 
-    for _ in range(3):
-        doc.add_paragraph()
+    doc.add_paragraph()
 
-    # Cover info
+    # Cover info — only show non-empty fields provided by user
     student = cover_data.get("student", "")
     university = cover_data.get("university", "")
     instructor = cover_data.get("instructor", "")
-    date = cover_data.get("date", "")
+    date_val = cover_data.get("date", "")
 
-    if student:
-        p = doc.add_paragraph(student)
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    if university:
-        p = doc.add_paragraph(university)
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    if instructor:
-        p = doc.add_paragraph(f"Instructor: {instructor}")
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    if date:
-        p = doc.add_paragraph(f"Date: {date}")
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    # Page break after cover
-    doc.add_page_break()
+    for field_val, field_label in [
+        (student, None), (university, None),
+        (instructor, "Instructor"), (date_val, "Date")
+    ]:
+        if field_val and field_val.strip():
+            text = f"{field_label}: {field_val}" if field_label else field_val
+            p = doc.add_paragraph(text)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     # === ABSTRACT ===
     abstract = report_data.get("abstract", "")
     if abstract:
-        doc.add_heading("Abstract", level=1)
+        h = doc.add_heading("Abstract", level=1)
+        for run in h.runs:
+            run.font.color.rgb = RGBColor(0, 0, 0)
         doc.add_paragraph(abstract)
         doc.add_paragraph()
 
     # === TABLE OF CONTENTS ===
     sections_data = report_data.get("sections", [])
     if sections_data:
-        doc.add_heading("Table of Contents", level=1)
+        h = doc.add_heading("Table of Contents", level=1)
+        for run in h.runs:
+            run.font.color.rgb = RGBColor(0, 0, 0)
+
+        def strip_heading_label(text):
+            if text.startswith("[Heading"):
+                parts = text.split("]", 1)
+                if len(parts) > 1:
+                    return parts[1].strip()
+            return text
 
         for section_idx, section in enumerate(sections_data, 1):
-            heading = section.get("heading", "")
-            # Extract section number from heading
+            heading = strip_heading_label(section.get("heading", ""))
             p = doc.add_paragraph(heading, style="List Number")
 
             subsections = section.get("subsections", [])
             for sub_idx, subsection in enumerate(subsections, 1):
-                sub_heading = subsection.get("heading", "")
+                sub_heading = strip_heading_label(subsection.get("heading", ""))
                 p = doc.add_paragraph(sub_heading, style="List Number 2")
-
-        doc.add_page_break()
 
     # === MAIN CONTENT ===
     for section in sections_data:
@@ -307,23 +315,31 @@ def json_to_word(report_json_str):
     # === TABLES ===
     tables = report_data.get("tables", [])
     if tables:
-        doc.add_heading("Data Tables", level=1)
+        h = doc.add_heading("Data Tables", level=1)
+        for run in h.runs:
+            run.font.color.rgb = RGBColor(0, 0, 0)
         for table_data in tables:
             if table_data.get("title"):
-                doc.add_heading(table_data["title"], level=2)
+                h = doc.add_heading(table_data["title"], level=2)
+                for run in h.runs:
+                    run.font.color.rgb = RGBColor(0, 0, 0)
             add_table_to_doc(doc, table_data)
 
     # === SMART STRUCTURES ===
     smart_structures = report_data.get("smart_structures", [])
     if smart_structures:
-        doc.add_heading("Structured Analysis", level=1)
+        h = doc.add_heading("Structured Analysis", level=1)
+        for run in h.runs:
+            run.font.color.rgb = RGBColor(0, 0, 0)
         for structure in smart_structures:
             add_smart_structure_to_doc(doc, structure)
 
     # === CHARTS ===
     charts = report_data.get("charts", [])
     if charts:
-        doc.add_heading("Data Analysis", level=1)
+        h = doc.add_heading("Data Analysis", level=1)
+        for run in h.runs:
+            run.font.color.rgb = RGBColor(0, 0, 0)
         for chart in charts:
             add_chart_description_to_doc(doc, chart)
 
@@ -331,14 +347,18 @@ def json_to_word(report_json_str):
     conclusion = report_data.get("conclusion", "")
     if conclusion:
         doc.add_page_break()
-        doc.add_heading("Conclusion", level=1)
+        h = doc.add_heading("Conclusion", level=1)
+        for run in h.runs:
+            run.font.color.rgb = RGBColor(0, 0, 0)
         doc.add_paragraph(conclusion)
 
     # === REFERENCES ===
     references = report_data.get("references", [])
     if references:
         doc.add_page_break()
-        doc.add_heading("References", level=1)
+        h = doc.add_heading("References", level=1)
+        for run in h.runs:
+            run.font.color.rgb = RGBColor(0, 0, 0)
         for ref in references:
             doc.add_paragraph(ref, style="List Bullet")
 

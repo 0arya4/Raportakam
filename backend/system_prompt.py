@@ -16,7 +16,7 @@ RULES (NON-NEGOTIABLE)
 
 MANDATORY FIELDS:
 ✓ title
-✓ cover (student, university, instructor, date)
+✓ cover (student, university, instructor, date) — use ONLY values provided by the user. If a field is not provided, set it to an empty string "". NEVER invent fake names, universities, instructors, or dates.
 ✓ abstract (if enabled)
 ✓ sections (with subsections, using [Heading 1], [Heading 2] labels)
 ✓ at least 1 table (with headers and rows)
@@ -24,7 +24,8 @@ MANDATORY FIELDS:
 ✓ at least 1 chart (bar/line/pie with real labels and values)
 ✓ references (if enabled)
 
-If any data is missing → generate realistic values.
+If CONTENT data is missing (tables, charts, sections) → generate realistic values.
+If COVER data is missing (student, university, instructor, date) → leave as empty string "".
 If output is not valid JSON → it is considered a failure.
 
 ═══════════════════════════════════════════════════════════════
