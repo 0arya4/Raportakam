@@ -1,0 +1,8 @@
+D:\raportakam\backend\main.py:43: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+[STARTUP] ENV_PATH=D:\raportakam\backend\.env key_len=108 key_start='sk-ant-api03-ZE'

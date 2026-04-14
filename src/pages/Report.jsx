@@ -257,7 +257,12 @@ export default function Report() {
     setDownloadingWord(true)
     setError('')
     try {
-      // streamedText contains JSON from Claude, send it to backend for conversion
+      // Validate streamedText
+      if (!streamedText || streamedText.trim().length === 0) {
+        throw new Error('Report JSON is empty. Please wait for generation to complete.')
+      }
+
+      console.log('Download: API_URL =', API_URL)
       console.log('Download: streamedText length =', streamedText.length)
       console.log('Download: streamedText first 200 chars =', streamedText.substring(0, 200))
       console.log('Download: streamedText last 100 chars =', streamedText.substring(streamedText.length - 100))
@@ -266,22 +271,29 @@ export default function Report() {
       formData.append('json_data', streamedText)
       formData.append('filename', form.title || form.topic || 'report')
 
+      console.log('Download: Sending to', `${API_URL}/report/download/word/json`)
       const response = await fetch(`${API_URL}/report/download/word/json`, {
         method: 'POST',
         body: formData,
       })
 
+      console.log('Download: Response status =', response.status)
+      console.log('Download: Response headers =', Object.fromEntries(response.headers))
+
       if (!response.ok) {
         const errorText = await response.text()
-        throw new Error(errorText || 'Word download failed')
+        throw new Error(errorText || `Server error: ${response.status}`)
       }
 
       const blob = await response.blob()
+      console.log('Download: Blob size =', blob.size, 'bytes')
       const filename = `${(form.title || form.topic || 'report').replace(/\s+/g, '_')}.docx`
       triggerDownload(URL.createObjectURL(blob), filename)
+      console.log('Download: Success!')
     } catch (e) {
       setError('داگرتنی Word سەرکەوتوو نەبوو: ' + e.message)
       console.error('Word download error:', e)
+      console.error('Error stack:', e.stack)
     } finally {
       setDownloadingWord(false)
     }

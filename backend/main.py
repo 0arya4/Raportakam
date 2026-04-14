@@ -1498,19 +1498,31 @@ async def report_download_word_json(
         Word document as download
     """
     try:
+        # Validate JSON data
+        if not json_data or not json_data.strip():
+            raise ValueError("JSON data is empty")
+
         # Convert JSON to Word
         print(f"[WORD] Received json_data length: {len(json_data)}")
         print(f"[WORD] First 200 chars: {json_data[:200]}")
         print(f"[WORD] Last 100 chars: {json_data[-100:]}")
         word_buffer = json_to_word(json_data)
 
-        safe = (filename or "report").replace(" ", "_")
+        # Return file directly without R2 upload
+        safe = (filename or "report").replace(" ", "_").replace("/", "_")
+        print(f"[WORD] Generated document: {safe}.docx, size: {word_buffer.getbuffer().nbytes} bytes")
+
         return StreamingResponse(
             word_buffer,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             headers={"Content-Disposition": f'attachment; filename="{safe}.docx"'},
         )
     except ValueError as e:
+        print(f"[WORD] Validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"[WORD] Error: {e}")
+        import traceback
+        traceback.print_exc()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating document: {str(e)}")

@@ -176,7 +176,7 @@ export default function Admin() {
     if (tab === 'orders') fetchOrders()
   }, [tab])
 
-  const fetchUsers = () => {
+  const fetchUsers = (retries = 2) => {
     setLoading(true)
     fetch(`${API_URL}/admin/users?secret=${ADMIN_SECRET}`)
       .then(r => r.json())
@@ -188,7 +188,13 @@ export default function Admin() {
         setStats({ total: data.total, pro, tokens, cost })
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => {
+        if (retries > 0) {
+          setTimeout(() => fetchUsers(retries - 1), 3000)
+        } else {
+          setLoading(false)
+        }
+      })
   }
 
   useEffect(() => {
